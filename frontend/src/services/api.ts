@@ -4,9 +4,10 @@ import {
   ValidationLog,
   ValidationLogDetail,
   PaginatedResponse,
+  PromptInfo,
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,11 +18,13 @@ const api = axios.create({
 
 export const apiService = {
   // ファイルアップロード・検証
-  async uploadFiles(files: File[]): Promise<ValidationBatch> {
+  async uploadFiles(files: File[], promptName: string = 'validation_prompt'): Promise<ValidationBatch> {
+    console.log(API_BASE_URL);
     const formData = new FormData();
     files.forEach((file) => {
       formData.append('files', file);
     });
+    formData.append('prompt_name', promptName);
 
     const response = await api.post('/validate', formData, {
       headers: {
@@ -60,6 +63,17 @@ export const apiService = {
   // 検証ログ詳細取得
   async getValidationLogDetail(batchId: string): Promise<ValidationLogDetail> {
     const response = await api.get(`/logs/${batchId}`);
+    return response.data;
+  },
+
+  // プロンプト関連
+  async getAvailablePrompts(): Promise<PromptInfo[]> {
+    const response = await api.get('/prompts');
+    return response.data.prompts;
+  },
+
+  async getPromptContent(promptName: string): Promise<{ name: string; content: string }> {
+    const response = await api.get(`/prompts/${promptName}`);
     return response.data;
   },
 };

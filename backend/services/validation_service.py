@@ -3,21 +3,23 @@ from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from models.database import ValidationBatch, ValidationFile, get_db
 from services.ollama_service import OllamaService
+from services.prompt_service import PromptService
 import os
 
 
 class ValidationService:
     def __init__(self):
         self.ollama_service = OllamaService()
-        self.validation_prompt = self._load_validation_prompt()
+        self.prompt_service = PromptService()
     
-    def _load_validation_prompt(self) -> str:
-        prompt_path = os.path.join(os.path.dirname(__file__), "../prompts/validation_prompt.txt")
-        try:
-            with open(prompt_path, 'r', encoding='utf-8') as f:
-                return f.read()
-        except FileNotFoundError:
+    def _get_prompt_content(self, prompt_name: str) -> str:
+        """指定されたプロンプト名でプロンプト内容を取得"""
+        prompt_content = self.prompt_service.load_prompt(prompt_name)
+        
+        if prompt_content is None:
             return self._get_default_prompt()
+        
+        return prompt_content
     
     def _get_default_prompt(self) -> str:
         return """You are a code security and quality analysis expert. Please analyze the following file for security vulnerabilities, quality issues, and best practice violations.
@@ -48,6 +50,7 @@ Respond only with valid JSON format."""
         type_mapping = {
             'yaml': 'yaml',
             'yml': 'yaml',
+            'cwl': 'cwl',
             'sh': 'shell',
             'c': 'c',
             'h': 'c',
@@ -90,17 +93,18 @@ Respond only with valid JSON format."""
         db.commit()
         return batch
     
-    def process_file_validation(self, file_id: str, db: Session) -> Dict[str, Any]:
+    def process_file_validation(self, file_id: str, db: Session, prompt_name: str = "validation_prompt") -> Dict[str, Any]:
         file_record = db.query(ValidationFile).filter(ValidationFile.id == file_id).first()
         
         if not file_record:
             return {"success": False, "error": "File not found"}
         
         try:
+            prompt_content = self._get_prompt_content(prompt_name)
             validation_result = self.ollama_service.validate_file(
                 file_record.file_content,
                 file_record.file_type,
-                self.validation_prompt
+                prompt_content
             )
             
             if validation_result["success"]:

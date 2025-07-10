@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import FileUpload from './components/FileUpload';
 import ValidationResult from './components/ValidationResult';
+import LogList from './components/LogList';
 import { ValidationBatch } from './types';
 
 function App() {
   const [currentBatch, setCurrentBatch] = useState<ValidationBatch | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const [activeTab, setActiveTab] = useState<'upload' | 'logs'>('upload');
   const [error, setError] = useState<string | null>(null);
 
   const handleUploadSuccess = (batch: ValidationBatch) => {
@@ -68,23 +70,55 @@ function App() {
           </div>
         )}
 
-        {/* Main Content */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              ファイルアップロード
-            </h2>
-            <p className="text-gray-600 text-sm">
-              検証したいワークフローファイルやコードファイルを選択してください。
-              YAML、Shell、C、Python、JavaScript、TypeScript、JSONなどに対応しています。
-            </p>
+        {/* Navigation Tabs */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('upload')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'upload'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                ファイルアップロード
+              </button>
+              <button
+                onClick={() => setActiveTab('logs')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'logs'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                検証ログ
+              </button>
+            </nav>
           </div>
-
-          <FileUpload
-            onUploadSuccess={handleUploadSuccess}
-            onUploadError={handleUploadError}
-          />
         </div>
+
+        {/* Tab Content */}
+        {activeTab === 'upload' ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                ファイルアップロード
+              </h2>
+              <p className="text-gray-600 text-sm">
+                検証したいワークフローファイルやコードファイルを選択してください。
+                YAML、CWL、Shell、C、Python、JavaScript、TypeScript、JSONなどに対応しています。
+              </p>
+            </div>
+
+            <FileUpload
+              onUploadSuccess={handleUploadSuccess}
+              onUploadError={handleUploadError}
+            />
+          </div>
+        ) : (
+          <LogList onError={handleUploadError} />
+        )}
 
         {/* Features Section */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">

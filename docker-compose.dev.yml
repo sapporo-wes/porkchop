@@ -1,13 +1,20 @@
 version: '3.8'
 
 services:
-  frontend:
-    build: ./frontend
+  frontend-dev:
+    image: node:22-alpine
+    working_dir: /app
     ports:
-      - "3000:80"
-    depends_on:
-      - backend-dev
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=/api
+      - VITE_PROXY_TARGET=http://backend-dev:8000
     restart: unless-stopped
+    # Keep container running for development
+    command: sleep infinity
 
   backend-dev:
     build: ./backend

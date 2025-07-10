@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from models.database import init_db
-from routers import upload, logs
+from routers import upload, logs, prompts
 
 load_dotenv()
 
@@ -23,6 +23,7 @@ app.add_middleware(
 
 app.include_router(upload.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
+app.include_router(prompts.router, prefix="/api")
 
 @app.on_event("startup")
 async def startup_event():

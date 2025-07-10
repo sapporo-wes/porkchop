@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 from models.database import get_db
@@ -9,10 +9,10 @@ router = APIRouter()
 validation_service = ValidationService()
 
 
-async def process_file_validation_background(file_id: str):
+async def process_file_validation_background(file_id: str, prompt_name: str = "validation_prompt"):
     db = next(get_db())
     try:
-        validation_service.process_file_validation(file_id, db)
+        validation_service.process_file_validation(file_id, db, prompt_name)
     finally:
         db.close()
 
@@ -21,6 +21,7 @@ async def process_file_validation_background(file_id: str):
 async def validate_files(
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
+    prompt_name: str = Form("validation_prompt"),
     db: Session = Depends(get_db)
 ):
     if not files:
@@ -43,7 +44,7 @@ async def validate_files(
     batch = validation_service.create_validation_batch(file_data, db)
     
     for validation_file in batch.files:
-        background_tasks.add_task(process_file_validation_background, validation_file.id)
+        background_tasks.add_task(process_file_validation_background, validation_file.id, prompt_name)
     
     return {
         "batch_id": batch.id,

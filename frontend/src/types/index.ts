@@ -37,10 +37,21 @@ export interface ValidationLog {
   created_at: string;
 }
 
-export interface ValidationLogDetail extends ValidationLog {
-  files: Array<ValidationFile & {
+export interface ValidationLogDetail {
+  batch_id: string;
+  status: 'processing' | 'completed' | 'failed';
+  total_files: number;
+  completed_files: number;
+  created_at: string;
+  files: Array<{
+    file_id: string;
+    filename: string;
     file_content: string;
     file_type: string;
+    status: 'processing' | 'completed' | 'failed';
+    score?: number;
+    validation_result?: ValidationResult;
+    created_at: string;
   }>;
 }
 
@@ -55,4 +66,10 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   total_pages: number;
+}
+
+export interface PromptInfo {
+  name: string;
+  filename: string;
+  description: string;
 }
