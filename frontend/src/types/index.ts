@@ -73,3 +73,11 @@ export interface PromptInfo {
   filename: string;
   description: string;
 }
+
+export interface ActiveBatch {
+  batch_id: string;
+  status: 'processing' | 'completed' | 'failed';
+  total_files: number;
+  completed_files: number;
+  created_at: string;
+}

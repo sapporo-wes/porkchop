@@ -1,5 +1,6 @@
 import json
 import os
+import asyncio
 from typing import Any, Dict
 
 import ollama
@@ -11,7 +12,13 @@ class OllamaService:
         self.model = model or os.getenv("OLLAMA_MODEL", "gemma3n:e4b")
         self.client = ollama.Client(host=self.host)
     
-    def validate_file(self, file_content: str, file_type: str, prompt: str) -> Dict[str, Any]:
+    async def validate_file_async(self, file_content: str, file_type: str, prompt: str) -> Dict[str, Any]:
+        """非同期でファイルを検証する"""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self._sync_validate_file, file_content, file_type, prompt)
+    
+    def _sync_validate_file(self, file_content: str, file_type: str, prompt: str) -> Dict[str, Any]:
+        """同期的なファイル検証処理（内部使用）"""
         full_prompt = f"{prompt}\n\nFile Type: {file_type}\nFile Content:\n{file_content}"
         
         try:
@@ -48,6 +55,10 @@ class OllamaService:
                 "success": False,
                 "error": str(e)
             }
+    
+    def validate_file(self, file_content: str, file_type: str, prompt: str) -> Dict[str, Any]:
+        """後方互換性のための同期メソッド（非推奨）"""
+        return self._sync_validate_file(file_content, file_type, prompt)
     
     def check_model_availability(self) -> bool:
         try:

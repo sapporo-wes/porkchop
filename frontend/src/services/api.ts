@@ -5,12 +5,14 @@ import {
   ValidationLogDetail,
   PaginatedResponse,
   PromptInfo,
+  ActiveBatch,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 30000, // 30秒でタイムアウト（検証処理を考慮）
   headers: {
     'Content-Type': 'application/json',
   },
@@ -75,6 +77,12 @@ export const apiService = {
   async getPromptContent(promptName: string): Promise<{ name: string; content: string }> {
     const response = await api.get(`/prompts/${promptName}`);
     return response.data;
+  },
+
+  // 進行中バッチ取得（ブラウザリロード時の復旧用）
+  async getActiveBatches(): Promise<ActiveBatch[]> {
+    const response = await api.get('/validate/active');
+    return response.data.active_batches;
   },
 };
 

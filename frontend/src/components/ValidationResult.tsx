@@ -6,9 +6,16 @@ import { ValidationFile, ValidationIssue } from '../types';
 interface ValidationResultProps {
   batchId: string;
   onClose: () => void;
+  isMinimized?: boolean;
+  onToggleMinimize?: () => void;
 }
 
-const ValidationResult: React.FC<ValidationResultProps> = ({ batchId, onClose }) => {
+const ValidationResult: React.FC<ValidationResultProps> = ({ 
+  batchId, 
+  onClose, 
+  isMinimized = false, 
+  onToggleMinimize 
+}) => {
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const { data: batch, isLoading, error } = useQuery({
@@ -170,10 +177,10 @@ const ValidationResult: React.FC<ValidationResultProps> = ({ batchId, onClose })
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+      <div className="fixed bottom-4 right-4 z-50">
+        <div className="bg-white rounded-lg shadow-lg border p-4 max-w-sm">
           <div className="flex items-center space-x-3">
-            <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+            <svg className="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
               <circle
                 className="opacity-25"
                 cx="12"
@@ -188,7 +195,7 @@ const ValidationResult: React.FC<ValidationResultProps> = ({ batchId, onClose })
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            <span>検証状況を確認中...</span>
+            <span className="text-sm">検証状況を確認中...</span>
           </div>
         </div>
       </div>
@@ -197,13 +204,13 @@ const ValidationResult: React.FC<ValidationResultProps> = ({ batchId, onClose })
 
   if (error) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+      <div className="fixed bottom-4 right-4 z-50">
+        <div className="bg-white rounded-lg shadow-lg border p-4 max-w-sm">
           <div className="text-red-600 text-center">
-            <p>エラーが発生しました</p>
+            <p className="text-sm">エラーが発生しました</p>
             <button
               onClick={onClose}
-              className="mt-3 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              className="mt-2 px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
             >
               閉じる
             </button>
@@ -217,20 +224,85 @@ const ValidationResult: React.FC<ValidationResultProps> = ({ batchId, onClose })
 
   const progress = batch.total_files > 0 ? (batch.completed_files / batch.total_files) * 100 : 0;
 
+  // ミニマイズ表示
+  if (isMinimized) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50">
+        <div className="bg-white rounded-lg shadow-lg border p-3 max-w-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
+                {batch.status === 'processing' && (
+                  <svg className="animate-spin h-3 w-3 text-blue-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                )}
+                <span className="text-xs text-gray-600">
+                  {batch.completed_files}/{batch.total_files}
+                </span>
+              </div>
+              <div className="w-16 bg-gray-200 rounded-full h-1">
+                <div
+                  className="bg-blue-600 h-1 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+            <div className="flex items-center space-x-1 ml-2">
+              <button
+                onClick={onToggleMinimize}
+                className="text-gray-400 hover:text-gray-600"
+                title="展開"
+              >
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 14l9-9 1.5 1.5L8.5 15.5z" />
+                </svg>
+              </button>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600"
+                title="閉じる"
+              >
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // フル表示
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">検証結果</h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 p-1"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center space-x-2">
+              {onToggleMinimize && (
+                <button
+                  onClick={onToggleMinimize}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                  title="最小化"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
           
           <div className="mt-4 space-y-3">

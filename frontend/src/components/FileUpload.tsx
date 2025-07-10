@@ -1,8 +1,8 @@
-import { useCallback, useState, useEffect } from 'react';
-import { useDropzone } from 'react-dropzone';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useCallback, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
 import apiService from '../services/api';
-import { ValidationBatch, PromptInfo } from '../types';
+import { ValidationBatch } from '../types';
 
 interface FileUploadProps {
   onUploadSuccess: (batch: ValidationBatch) => void;
@@ -214,7 +214,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
                 ファイルをドラッグ&ドロップするか、クリックして選択
               </p>
               <p className="text-sm text-gray-500">
-                YAML, Shell, C, Python, JavaScript, TypeScript, JSONなど対応
+                YAML, CWL, Shell, C, Python, JavaScript, TypeScript, JSONなど対応
                 <br />
                 最大10ファイル、1ファイル10MBまで
               </p>

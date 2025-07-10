@@ -93,7 +93,49 @@ Respond only with valid JSON format."""
         db.commit()
         return batch
     
+    async def process_file_validation_async(self, file_id: str, db: Session, prompt_name: str = "validation_prompt") -> Dict[str, Any]:
+        """非同期でファイル検証を処理する"""
+        file_record = db.query(ValidationFile).filter(ValidationFile.id == file_id).first()
+        
+        if not file_record:
+            return {"success": False, "error": "File not found"}
+        
+        try:
+            prompt_content = self._get_prompt_content(prompt_name)
+            validation_result = await self.ollama_service.validate_file_async(
+                file_record.file_content,
+                file_record.file_type,
+                prompt_content
+            )
+            
+            if validation_result["success"]:
+                result = validation_result["result"]
+                file_record.validation_result = result
+                file_record.score = result.get("score", 0)
+                file_record.status = "completed"
+                
+                batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+                if batch:
+                    batch.completed_files += 1
+                    if batch.completed_files >= batch.total_files:
+                        batch.status = "completed"
+                
+                db.commit()
+                return {"success": True, "result": result}
+            else:
+                file_record.status = "failed"
+                file_record.validation_result = {"error": validation_result["error"]}
+                db.commit()
+                return validation_result
+                
+        except Exception as e:
+            file_record.status = "failed"
+            file_record.validation_result = {"error": str(e)}
+            db.commit()
+            return {"success": False, "error": str(e)}
+    
     def process_file_validation(self, file_id: str, db: Session, prompt_name: str = "validation_prompt") -> Dict[str, Any]:
+        """後方互換性のための同期メソッド（非推奨）"""
         file_record = db.query(ValidationFile).filter(ValidationFile.id == file_id).first()
         
         if not file_record:
@@ -158,3 +200,26 @@ Respond only with valid JSON format."""
                 for f in files
             ]
         }
+    
+    def get_active_batches(self, db: Session) -> List[Dict[str, Any]]:
+        """進行中の検証バッチを取得する"""
+        from datetime import datetime, timedelta
+        
+        # 過去1時間以内に作成された processing ステータスのバッチを取得
+        cutoff_time = datetime.utcnow() - timedelta(hours=1)
+        active_batches = db.query(ValidationBatch).filter(
+            ValidationBatch.status == "processing",
+            ValidationBatch.created_at >= cutoff_time
+        ).order_by(ValidationBatch.created_at.desc()).all()
+        
+        result = []
+        for batch in active_batches:
+            result.append({
+                "batch_id": batch.id,
+                "status": batch.status,
+                "total_files": batch.total_files,
+                "completed_files": batch.completed_files,
+                "created_at": batch.created_at.isoformat()
+            })
+        
+        return result

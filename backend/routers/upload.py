@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from models.database import get_db
@@ -9,7 +9,16 @@ router = APIRouter()
 validation_service = ValidationService()
 
 
+async def process_file_validation_background_async(file_id: str, prompt_name: str = "validation_prompt"):
+    """非同期バックグラウンドタスク - Ollamaをブロックしない"""
+    db = next(get_db())
+    try:
+        await validation_service.process_file_validation_async(file_id, db, prompt_name)
+    finally:
+        db.close()
+
 async def process_file_validation_background(file_id: str, prompt_name: str = "validation_prompt"):
+    """後方互換性のための同期バックグラウンドタスク（非推奨）"""
     db = next(get_db())
     try:
         validation_service.process_file_validation(file_id, db, prompt_name)
@@ -19,7 +28,6 @@ async def process_file_validation_background(file_id: str, prompt_name: str = "v
 
 @router.post("/validate")
 async def validate_files(
-    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     prompt_name: str = Form("validation_prompt"),
     db: Session = Depends(get_db)
@@ -43,8 +51,9 @@ async def validate_files(
     
     batch = validation_service.create_validation_batch(file_data, db)
     
+    # 非同期タスクとして実行（FastAPIワーカーをブロックしない）
     for validation_file in batch.files:
-        background_tasks.add_task(process_file_validation_background, validation_file.id, prompt_name)
+        asyncio.create_task(process_file_validation_background_async(validation_file.id, prompt_name))
     
     return {
         "batch_id": batch.id,
@@ -76,3 +85,9 @@ async def get_validation_status(batch_id: str, db: Session = Depends(get_db)):
         "completed_files": result["completed_files"],
         "files": result["files"]
     }
+
+@router.get("/validate/active")
+async def get_active_validation_batches(db: Session = Depends(get_db)):
+    """進行中の検証バッチを取得する（ブラウザリロード時の復旧用）"""
+    active_batches = validation_service.get_active_batches(db)
+    return {"active_batches": active_batches}
