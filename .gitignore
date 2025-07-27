@@ -353,3 +353,6 @@ vite.config.ts.timestamp-*
 
 # database files
 *.db
+
+# temporary files
+tmp/
