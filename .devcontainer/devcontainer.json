@@ -28,5 +28,5 @@
     }
   },
   "forwardPorts": [3000, 8000, 11434],
-  "postCreateCommand": "cd /workspace/backend && pip install -e . && cd /workspace/frontend && npm install"
+  "postCreateCommand": "cd /workspace/backend && pip install -e .[dev] && cd /workspace/frontend && npm install"
 }
