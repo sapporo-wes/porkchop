@@ -14,6 +14,10 @@ Ollama（gemma3n:e4b）を使用してワークフローファイルとコード
 porkchop/
 ├── docker-compose.yml                 # 本番環境設定
 ├── docker-compose.dev.yml            # 開発環境設定
+├── .devcontainer/                     # DevContainer統合開発環境
+│   ├── devcontainer.json              # VS Code DevContainer設定
+│   ├── docker-compose.devcontainer.yml # DevContainer用Docker Compose
+│   └── Dockerfile                     # Python 3.11 + Node.js 22統合環境
 ├── frontend/
 │   ├── Dockerfile
 │   ├── package.json                   # React 18 + TypeScript + Vite
@@ -78,6 +82,12 @@ porkchop/
 - **Docker** + **Docker Compose**
 - **Nginx** (フロントエンド配信)
 - **Ollama** (gemma3n:e4b LLMサーバー)
+
+### 開発環境
+- **VS Code DevContainer** (統合開発環境)
+- **Ruff** (Python linter/formatter)
+- **Prettier** (JavaScript/TypeScript formatter)
+- **ESLint** (JavaScript/TypeScript linter)
 
 ## 主要機能
 
@@ -428,7 +438,28 @@ class PromptService:
 
 ## 使用方法
 
-### 開発環境
+### DevContainer開発環境（推奨）
+```bash
+# VS Codeでプロジェクトを開く
+code /path/to/porkchop
+
+# Command Palette (Ctrl+Shift+P) から実行
+# "Dev Containers: Reopen in Container"
+
+# 初回セットアップは自動で実行される
+# - Python依存関係のインストール (pip install -e .)
+# - Node.js依存関係のインストール (npm install)
+# - 開発ツール設定 (Ruff, Prettier, ESLint)
+
+# コンテナ内でサービス起動
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload  # バックエンド
+npm run dev  # フロントエンド (別ターミナル)
+
+# Ollamaモデル取得（初回のみ）
+docker exec -it porkchop-ollama-1 ollama pull gemma3n:e4b
+```
+
+### 従来の開発環境
 ```bash
 # 開発環境起動
 docker compose -f docker-compose.dev.yml up -d
@@ -469,6 +500,8 @@ docker exec -it porkchop-ollama-1 ollama pull gemma3n:e4b
 - **非同期処理アーキテクチャ** - 検証中でも他API応答可能 🆕
 - **進行中バッチ自動復旧** - ブラウザリロード時の検証継続表示 🆕
 - **Docker化** - 本番・開発環境対応
+- **DevContainer統合開発環境** - VS Code統合環境、自動セットアップ 🆕
+- **開発ツール統合** - Ruff, Prettier, ESLint自動設定 🆕
 - **TypeScript型定義** - 完全な型安全性
 - **エラーハンドリング** - 適切なエラー処理
 
@@ -628,6 +661,66 @@ useEffect(() => {
 - **React Query + useEffect** - 進行中バッチの自動復旧
 - **SQLAlchemy datetime filter** - 過去1時間以内のバッチ検索
 - **axios timeout設定** - フロントエンド側のタイムアウト対応（30秒）
+
+---
+
+## 🔧 DevContainer統合開発環境詳細
+
+### 概要
+VS Code Dev Containerを使用してPython + Node.js統合開発環境を提供。依存関係の解決と開発ツールの設定を自動化。
+
+### 技術構成
+- **ベースイメージ**: Python 3.11-slim + Node.js 22
+- **開発ツール**: Ruff, Prettier, ESLint
+- **VS Code拡張機能**: 自動インストール・設定
+- **ポートフォワーディング**: 3000, 8000, 11434
+
+### 設定ファイル構成
+
+#### `.devcontainer/devcontainer.json`
+```json
+{
+  "name": "Porkchop Full Stack Development",
+  "dockerComposeFile": ["../docker-compose.dev.yml", "docker-compose.devcontainer.yml"],
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "esbenp.prettier-vscode", 
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" },
+        "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" }
+      }
+    }
+  },
+  "postCreateCommand": "cd /workspace/backend && pip install -e . && cd /workspace/frontend && npm install"
+}
+```
+
+#### 開発ツール設定
+**Python (Ruff)**:
+- 高速linting・formatting
+- line-length: 88
+- isort統合、pyupgrade対応
+
+**JavaScript/TypeScript (Prettier + ESLint)**:
+- 統一コードスタイル
+- React Hook ルール
+- TypeScript厳密チェック
+
+### 利点
+- ✅ **環境統一**: チーム全体で同じ開発環境
+- ✅ **自動セットアップ**: 依存関係とツール設定の自動化
+- ✅ **フルスタック対応**: Python・Node.js両方を単一環境で
+- ✅ **VS Code統合**: デバッグ・IntelliSense・拡張機能
+- ✅ **ホストマシン非依存**: ローカル環境を汚さない
 
 ---
 
