@@ -125,12 +125,28 @@ Respond only with valid JSON format."""
             else:
                 file_record.status = "failed"
                 file_record.validation_result = {"error": validation_result["error"]}
+                
+                # バッチの完了ファイル数を更新（失敗もカウント）
+                batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+                if batch:
+                    batch.completed_files += 1
+                    if batch.completed_files >= batch.total_files:
+                        batch.status = "completed"  # 全ファイル処理完了（成功・失敗含む）
+                
                 db.commit()
                 return validation_result
                 
         except Exception as e:
             file_record.status = "failed"
             file_record.validation_result = {"error": str(e)}
+            
+            # バッチの完了ファイル数を更新（例外時も失敗としてカウント）
+            batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+            if batch:
+                batch.completed_files += 1
+                if batch.completed_files >= batch.total_files:
+                    batch.status = "completed"  # 全ファイル処理完了（成功・失敗含む）
+            
             db.commit()
             return {"success": False, "error": str(e)}
     
@@ -166,12 +182,28 @@ Respond only with valid JSON format."""
             else:
                 file_record.status = "failed"
                 file_record.validation_result = {"error": validation_result["error"]}
+                
+                # バッチの完了ファイル数を更新（失敗もカウント）
+                batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+                if batch:
+                    batch.completed_files += 1
+                    if batch.completed_files >= batch.total_files:
+                        batch.status = "completed"  # 全ファイル処理完了（成功・失敗含む）
+                
                 db.commit()
                 return validation_result
                 
         except Exception as e:
             file_record.status = "failed"
             file_record.validation_result = {"error": str(e)}
+            
+            # バッチの完了ファイル数を更新（例外時も失敗としてカウント）
+            batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+            if batch:
+                batch.completed_files += 1
+                if batch.completed_files >= batch.total_files:
+                    batch.status = "completed"  # 全ファイル処理完了（成功・失敗含む）
+            
             db.commit()
             return {"success": False, "error": str(e)}
     
@@ -203,10 +235,10 @@ Respond only with valid JSON format."""
     
     def get_active_batches(self, db: Session) -> List[Dict[str, Any]]:
         """進行中の検証バッチを取得する"""
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
         
         # 過去1時間以内に作成された processing ステータスのバッチを取得
-        cutoff_time = datetime.utcnow() - timedelta(hours=1)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=1)
         active_batches = db.query(ValidationBatch).filter(
             ValidationBatch.status == "processing",
             ValidationBatch.created_at >= cutoff_time
