@@ -1,12 +1,14 @@
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
-from typing import List, Dict, Any
+
 from services.prompt_service import PromptService
 
 router = APIRouter()
 prompt_service = PromptService()
 
 
-@router.get("/prompts", response_model=Dict[str, List[Dict[str, Any]]])
+@router.get("/prompts", response_model=dict[str, list[dict[str, Any]]])
 async def get_available_prompts():
     """
     利用可能なプロンプト一覧を取得
@@ -26,12 +28,11 @@ async def get_prompt_content(prompt_name: str):
     try:
         content = prompt_service.load_prompt(prompt_name)
         if content is None:
-            raise HTTPException(status_code=404, detail=f"Prompt '{prompt_name}' not found")
-        
-        return {
-            "name": prompt_name,
-            "content": content
-        }
+            raise HTTPException(
+                status_code=404, detail=f"Prompt '{prompt_name}' not found"
+            )
+
+        return {"name": prompt_name, "content": content}
     except HTTPException:
         raise
     except Exception as e:

@@ -1,26 +1,28 @@
 import uuid
-from typing import List, Dict, Any
+from datetime import UTC
+from typing import Any
+
 from sqlalchemy.orm import Session
-from models.database import ValidationBatch, ValidationFile, get_db
+
+from models.database import ValidationBatch, ValidationFile
 from services.ollama_service import OllamaService
 from services.prompt_service import PromptService
-import os
 
 
 class ValidationService:
     def __init__(self):
         self.ollama_service = OllamaService()
         self.prompt_service = PromptService()
-    
+
     def _get_prompt_content(self, prompt_name: str) -> str:
         """指定されたプロンプト名でプロンプト内容を取得"""
         prompt_content = self.prompt_service.load_prompt(prompt_name)
-        
+
         if prompt_content is None:
             return self._get_default_prompt()
-        
+
         return prompt_content
-    
+
     def _get_default_prompt(self) -> str:
         return """You are a code security and quality analysis expert. Please analyze the following file for security vulnerabilities, quality issues, and best practice violations.
 
@@ -44,177 +46,210 @@ Please provide your analysis in the following JSON format:
 }
 
 Respond only with valid JSON format."""
-    
+
     def _get_file_type(self, filename: str) -> str:
-        extension = filename.split('.')[-1].lower()
+        extension = filename.split(".")[-1].lower()
         type_mapping = {
-            'yaml': 'yaml',
-            'yml': 'yaml',
-            'cwl': 'cwl',
-            'sh': 'shell',
-            'c': 'c',
-            'h': 'c',
-            'py': 'python',
-            'js': 'javascript',
-            'ts': 'typescript',
-            'json': 'json',
-            'toml': 'toml',
-            'md': 'markdown'
+            "yaml": "yaml",
+            "yml": "yaml",
+            "cwl": "cwl",
+            "sh": "shell",
+            "c": "c",
+            "h": "c",
+            "py": "python",
+            "js": "javascript",
+            "ts": "typescript",
+            "json": "json",
+            "toml": "toml",
+            "md": "markdown",
         }
-        return type_mapping.get(extension, 'text')
-    
-    def create_validation_batch(self, files: List[Dict[str, Any]], db: Session) -> ValidationBatch:
+        return type_mapping.get(extension, "text")
+
+    def create_validation_batch(
+        self, files: list[dict[str, Any]], db: Session
+    ) -> ValidationBatch:
         batch_id = str(uuid.uuid4())
         batch = ValidationBatch(
-            id=batch_id,
-            status="processing",
-            total_files=len(files),
-            completed_files=0
+            id=batch_id, status="processing", total_files=len(files), completed_files=0
         )
-        
+
         db.add(batch)
         db.commit()
-        
+
         for file_data in files:
             file_id = str(uuid.uuid4())
-            file_type = self._get_file_type(file_data['filename'])
-            
+            file_type = self._get_file_type(file_data["filename"])
+
             validation_file = ValidationFile(
                 id=file_id,
                 batch_id=batch_id,
-                filename=file_data['filename'],
-                file_content=file_data['content'],
+                filename=file_data["filename"],
+                file_content=file_data["content"],
                 file_type=file_type,
-                status="processing"
+                status="processing",
             )
-            
+
             db.add(validation_file)
-        
+
         db.commit()
         return batch
-    
-    async def process_file_validation_async(self, file_id: str, db: Session, prompt_name: str = "validation_prompt") -> Dict[str, Any]:
+
+    async def process_file_validation_async(
+        self, file_id: str, db: Session, prompt_name: str = "validation_prompt"
+    ) -> dict[str, Any]:
         """非同期でファイル検証を処理する"""
-        file_record = db.query(ValidationFile).filter(ValidationFile.id == file_id).first()
-        
+        file_record = (
+            db.query(ValidationFile).filter(ValidationFile.id == file_id).first()
+        )
+
         if not file_record:
             return {"success": False, "error": "File not found"}
-        
+
         try:
             prompt_content = self._get_prompt_content(prompt_name)
             validation_result = await self.ollama_service.validate_file_async(
-                file_record.file_content,
-                file_record.file_type,
-                prompt_content
+                file_record.file_content, file_record.file_type, prompt_content
             )
-            
+
             if validation_result["success"]:
                 result = validation_result["result"]
                 file_record.validation_result = result
                 file_record.score = result.get("score", 0)
                 file_record.status = "completed"
-                
-                batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+
+                batch = (
+                    db.query(ValidationBatch)
+                    .filter(ValidationBatch.id == file_record.batch_id)
+                    .first()
+                )
                 if batch:
                     batch.completed_files += 1
                     if batch.completed_files >= batch.total_files:
                         batch.status = "completed"
-                
+
                 db.commit()
                 return {"success": True, "result": result}
             else:
                 file_record.status = "failed"
                 file_record.validation_result = {"error": validation_result["error"]}
-                
+
                 # バッチの完了ファイル数を更新（失敗もカウント）
-                batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+                batch = (
+                    db.query(ValidationBatch)
+                    .filter(ValidationBatch.id == file_record.batch_id)
+                    .first()
+                )
                 if batch:
                     batch.completed_files += 1
                     if batch.completed_files >= batch.total_files:
-                        batch.status = "completed"  # 全ファイル処理完了（成功・失敗含む）
-                
+                        batch.status = (
+                            "completed"  # 全ファイル処理完了（成功・失敗含む）
+                        )
+
                 db.commit()
                 return validation_result
-                
+
         except Exception as e:
             file_record.status = "failed"
             file_record.validation_result = {"error": str(e)}
-            
+
             # バッチの完了ファイル数を更新（例外時も失敗としてカウント）
-            batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+            batch = (
+                db.query(ValidationBatch)
+                .filter(ValidationBatch.id == file_record.batch_id)
+                .first()
+            )
             if batch:
                 batch.completed_files += 1
                 if batch.completed_files >= batch.total_files:
                     batch.status = "completed"  # 全ファイル処理完了（成功・失敗含む）
-            
+
             db.commit()
             return {"success": False, "error": str(e)}
-    
-    def process_file_validation(self, file_id: str, db: Session, prompt_name: str = "validation_prompt") -> Dict[str, Any]:
+
+    def process_file_validation(
+        self, file_id: str, db: Session, prompt_name: str = "validation_prompt"
+    ) -> dict[str, Any]:
         """後方互換性のための同期メソッド（非推奨）"""
-        file_record = db.query(ValidationFile).filter(ValidationFile.id == file_id).first()
-        
+        file_record = (
+            db.query(ValidationFile).filter(ValidationFile.id == file_id).first()
+        )
+
         if not file_record:
             return {"success": False, "error": "File not found"}
-        
+
         try:
             prompt_content = self._get_prompt_content(prompt_name)
             validation_result = self.ollama_service.validate_file(
-                file_record.file_content,
-                file_record.file_type,
-                prompt_content
+                file_record.file_content, file_record.file_type, prompt_content
             )
-            
+
             if validation_result["success"]:
                 result = validation_result["result"]
                 file_record.validation_result = result
                 file_record.score = result.get("score", 0)
                 file_record.status = "completed"
-                
-                batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+
+                batch = (
+                    db.query(ValidationBatch)
+                    .filter(ValidationBatch.id == file_record.batch_id)
+                    .first()
+                )
                 if batch:
                     batch.completed_files += 1
                     if batch.completed_files >= batch.total_files:
                         batch.status = "completed"
-                
+
                 db.commit()
                 return {"success": True, "result": result}
             else:
                 file_record.status = "failed"
                 file_record.validation_result = {"error": validation_result["error"]}
-                
+
                 # バッチの完了ファイル数を更新（失敗もカウント）
-                batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+                batch = (
+                    db.query(ValidationBatch)
+                    .filter(ValidationBatch.id == file_record.batch_id)
+                    .first()
+                )
                 if batch:
                     batch.completed_files += 1
                     if batch.completed_files >= batch.total_files:
-                        batch.status = "completed"  # 全ファイル処理完了（成功・失敗含む）
-                
+                        batch.status = (
+                            "completed"  # 全ファイル処理完了（成功・失敗含む）
+                        )
+
                 db.commit()
                 return validation_result
-                
+
         except Exception as e:
             file_record.status = "failed"
             file_record.validation_result = {"error": str(e)}
-            
+
             # バッチの完了ファイル数を更新（例外時も失敗としてカウント）
-            batch = db.query(ValidationBatch).filter(ValidationBatch.id == file_record.batch_id).first()
+            batch = (
+                db.query(ValidationBatch)
+                .filter(ValidationBatch.id == file_record.batch_id)
+                .first()
+            )
             if batch:
                 batch.completed_files += 1
                 if batch.completed_files >= batch.total_files:
                     batch.status = "completed"  # 全ファイル処理完了（成功・失敗含む）
-            
+
             db.commit()
             return {"success": False, "error": str(e)}
-    
-    def get_batch_status(self, batch_id: str, db: Session) -> Dict[str, Any]:
+
+    def get_batch_status(self, batch_id: str, db: Session) -> dict[str, Any]:
         batch = db.query(ValidationBatch).filter(ValidationBatch.id == batch_id).first()
-        
+
         if not batch:
             return {"success": False, "error": "Batch not found"}
-        
-        files = db.query(ValidationFile).filter(ValidationFile.batch_id == batch_id).all()
-        
+
+        files = (
+            db.query(ValidationFile).filter(ValidationFile.batch_id == batch_id).all()
+        )
+
         return {
             "success": True,
             "batch_id": batch_id,
@@ -227,31 +262,38 @@ Respond only with valid JSON format."""
                     "filename": f.filename,
                     "status": f.status,
                     "score": f.score,
-                    "result": f.validation_result
+                    "result": f.validation_result,
                 }
                 for f in files
-            ]
+            ],
         }
-    
-    def get_active_batches(self, db: Session) -> List[Dict[str, Any]]:
+
+    def get_active_batches(self, db: Session) -> list[dict[str, Any]]:
         """進行中の検証バッチを取得する"""
-        from datetime import datetime, timedelta, timezone
-        
+        from datetime import datetime, timedelta
+
         # 過去1時間以内に作成された processing ステータスのバッチを取得
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=1)
-        active_batches = db.query(ValidationBatch).filter(
-            ValidationBatch.status == "processing",
-            ValidationBatch.created_at >= cutoff_time
-        ).order_by(ValidationBatch.created_at.desc()).all()
-        
+        cutoff_time = datetime.now(UTC) - timedelta(hours=1)
+        active_batches = (
+            db.query(ValidationBatch)
+            .filter(
+                ValidationBatch.status == "processing",
+                ValidationBatch.created_at >= cutoff_time,
+            )
+            .order_by(ValidationBatch.created_at.desc())
+            .all()
+        )
+
         result = []
         for batch in active_batches:
-            result.append({
-                "batch_id": batch.id,
-                "status": batch.status,
-                "total_files": batch.total_files,
-                "completed_files": batch.completed_files,
-                "created_at": batch.created_at.isoformat()
-            })
-        
+            result.append(
+                {
+                    "batch_id": batch.id,
+                    "status": batch.status,
+                    "total_files": batch.total_files,
+                    "completed_files": batch.completed_files,
+                    "created_at": batch.created_at.isoformat(),
+                }
+            )
+
         return result
