@@ -1,0 +1,18 @@
+version: "3.8"
+services:
+  devcontainer:
+    build:
+      context: ./
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ./:/workspace:cached
+      - vscode-server:/root/.vscode-server
+    command: sleep infinity
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=gemma3n:e4b
+
+volumes:
+  vscode-server:
