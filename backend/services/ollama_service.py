@@ -12,6 +12,56 @@ class OllamaService:
         self.model = model or os.getenv("OLLAMA_MODEL", "gemma3n:e4b")
         self.client = ollama.Client(host=self.host)
 
+    def fix_unescaped_quotes_in_json_strings(self, json_str: str) -> str:
+        """JSON文字列値内の未エスケープダブルクオートを修正"""
+
+        out = []
+        in_string = False
+        escape = False
+
+        i = 0
+        n = len(json_str)
+        while i < n:
+            ch = json_str[i]
+
+            if ch == '"' and not escape:
+                if not in_string:
+                    # 文字列開始
+                    in_string = True
+                    out.append(ch)
+                else:
+                    # 文字列の中で " を発見。終端かどうかを推定
+                    j = i + 1
+                    while j < n and json_str[j].isspace():
+                        j += 1
+                    # 終端候補かどうか：直後が , } ] または入力末尾
+                    is_closing = (j >= n) or (json_str[j] in ":,}]")
+                    if is_closing:
+                        in_string = False
+                        out.append(ch)  # 終端の " はそのまま
+                    else:
+                        out.append('\\"')  # 文字列内の裸の " をエスケープ
+                i += 1
+                continue
+
+            if ch == "\\" and not escape:
+                escape = True
+                out.append(ch)
+                i += 1
+                continue
+
+            if escape:
+                # 直前がバックスラッシュだったので通常処理に戻る
+                escape = False
+                out.append(ch)
+                i += 1
+                continue
+
+            out.append(ch)
+            i += 1
+
+        return "".join(out)
+
     async def validate_file_async(
         self, file_content: str, file_type: str, prompt: str
     ) -> dict[str, Any]:
@@ -42,9 +92,13 @@ class OllamaService:
                 end = response_text.find("```", start)
                 if end != -1:
                     response_text = response_text[start:end].strip()
-            print(response_text)
             try:
-                result = json.loads(response_text)
+                # JSON内の一般的な未エスケープクオートを修正
+                fixed_response_text = self.fix_unescaped_quotes_in_json_strings(
+                    response_text
+                )
+                print(fixed_response_text)
+                result = json.loads(fixed_response_text)
                 return {"success": True, "result": result}
             except json.JSONDecodeError:
                 return {
