@@ -1,6 +1,9 @@
 {
   "name": "Porkchop Full Stack Development",
-  "dockerComposeFile": ["../docker-compose.dev.yml", "docker-compose.devcontainer.yml"],
+  "dockerComposeFile": [
+    "../docker-compose.dev.yml",
+    "docker-compose.devcontainer.yml"
+  ],
   "service": "devcontainer",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
@@ -27,6 +30,11 @@
       }
     }
   },
+  "mounts": [
+    "type=bind,source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,readonly",
+    "type=bind,source=${localEnv:HOME}/.claude,target=/home/vscode/.claude",
+    "type=bind,source=${localEnv:HOME}/.claude/settings.json,target=/home/vscode/.claude/settings.json,readonly"
+  ],
   "forwardPorts": [3000, 8000, 11434],
   "postCreateCommand": "cd /workspace/backend && pip install -e .[dev] && cd /workspace/frontend && npm install"
 }
