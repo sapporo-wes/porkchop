@@ -64,7 +64,7 @@ class PromptService:
 
                 # 最初の文（ピリオドまで）を説明として使用
                 first_sentence = first_line.split(".")[0]
-                if len(first_sentence) < 100:  # 短い場合のみ説明として使用
+                if first_sentence and len(first_sentence) < 100:  # 空文字列でなく、短い場合のみ説明として使用
                     return first_sentence
 
         except Exception:
