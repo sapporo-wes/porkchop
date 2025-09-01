@@ -1,66 +1,98 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
-import apiService from '../services/api';
-import { ValidationBatch } from '../types';
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import apiService from "../services/api";
+import { ValidationBatch } from "../types";
 
 interface FileUploadProps {
   onUploadSuccess: (batch: ValidationBatch) => void;
   onUploadError: (error: string) => void;
 }
 
-const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError }) => {
+const FileUpload: React.FC<FileUploadProps> = ({
+  onUploadSuccess,
+  onUploadError,
+}) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [selectedPrompt, setSelectedPrompt] = useState<string>('validation_prompt');
+  const [selectedPrompt, setSelectedPrompt] =
+    useState<string>("validation_prompt");
   const [showPromptContent, setShowPromptContent] = useState<boolean>(false);
-  const [promptContent, setPromptContent] = useState<string>('');
+  const [promptContent, setPromptContent] = useState<string>("");
 
-  const { data: prompts, isLoading: promptsLoading, refetch: refetchPrompts } = useQuery({
-    queryKey: ['prompts'],
+  const {
+    data: prompts,
+    isLoading: promptsLoading,
+    refetch: refetchPrompts,
+  } = useQuery({
+    queryKey: ["prompts"],
     queryFn: apiService.getAvailablePrompts,
   });
 
   const uploadMutation = useMutation({
-    mutationFn: ({ files, promptName }: { files: File[], promptName: string }) => 
-      apiService.uploadFiles(files, promptName),
+    mutationFn: ({
+      files,
+      promptName,
+    }: {
+      files: File[];
+      promptName: string;
+    }) => apiService.uploadFiles(files, promptName),
     onSuccess: (data) => {
       setSelectedFiles([]);
       onUploadSuccess(data);
     },
     onError: (error: any) => {
-      onUploadError(error.response?.data?.detail || error.message || '不明なエラーが発生しました');
+      onUploadError(
+        error.response?.data?.detail ||
+          error.message ||
+          "不明なエラーが発生しました"
+      );
     },
   });
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const validFiles = acceptedFiles.filter(file => {
-      if (file.size > 10 * 1024 * 1024) {
-        onUploadError(`ファイル ${file.name} のサイズが10MBを超えています`);
-        return false;
-      }
-      return true;
-    });
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const validFiles = acceptedFiles.filter((file) => {
+        if (file.size > 10 * 1024 * 1024) {
+          onUploadError(`ファイル ${file.name} のサイズが10MBを超えています`);
+          return false;
+        }
+        return true;
+      });
 
-    setSelectedFiles(prev => [...prev, ...validFiles]);
-  }, [onUploadError]);
+      setSelectedFiles((prev) => [...prev, ...validFiles]);
+    },
+    [onUploadError]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'text/yaml': ['.yml', '.yaml'],
-      'text/plain': ['.txt', '.sh', '.c', '.h', '.py', '.js', '.ts', '.json', '.toml', '.md', '.cwl'],
-      'application/x-sh': ['.sh'],
+      "text/yaml": [".yml", ".yaml"],
+      "text/plain": [
+        ".txt",
+        ".sh",
+        ".c",
+        ".h",
+        ".py",
+        ".js",
+        ".ts",
+        ".json",
+        ".toml",
+        ".md",
+        ".cwl",
+      ],
+      "application/x-sh": [".sh"],
     },
     maxFiles: 10,
   });
 
   const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleUpload = () => {
     if (selectedFiles.length === 0) {
-      onUploadError('ファイルを選択してください');
+      onUploadError("ファイルを選択してください");
       return;
     }
     uploadMutation.mutate({ files: selectedFiles, promptName: selectedPrompt });
@@ -72,36 +104,36 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
 
   const handleShowPromptContent = async () => {
     if (!selectedPrompt) return;
-    
+
     try {
       const response = await apiService.getPromptContent(selectedPrompt);
       setPromptContent(response.content);
       setShowPromptContent(true);
     } catch (error) {
-      onUploadError('プロンプト内容の取得に失敗しました');
+      onUploadError("プロンプト内容の取得に失敗しました");
     }
   };
 
   const getSeverityColor = (filename: string) => {
-    const ext = filename.split('.').pop()?.toLowerCase();
+    const ext = filename.split(".").pop()?.toLowerCase();
     switch (ext) {
-      case 'yml':
-      case 'yaml':
-        return 'bg-blue-100 text-blue-800';
-      case 'cwl':
-        return 'bg-indigo-100 text-indigo-800';
-      case 'sh':
-        return 'bg-green-100 text-green-800';
-      case 'c':
-      case 'h':
-        return 'bg-purple-100 text-purple-800';
-      case 'py':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'js':
-      case 'ts':
-        return 'bg-orange-100 text-orange-800';
+      case "yml":
+      case "yaml":
+        return "bg-blue-100 text-blue-800";
+      case "cwl":
+        return "bg-indigo-100 text-indigo-800";
+      case "sh":
+        return "bg-green-100 text-green-800";
+      case "c":
+      case "h":
+        return "bg-purple-100 text-purple-800";
+      case "py":
+        return "bg-yellow-100 text-yellow-800";
+      case "js":
+      case "ts":
+        return "bg-orange-100 text-orange-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -118,7 +150,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
             disabled={promptsLoading}
             className="text-blue-600 hover:text-blue-800 text-sm font-medium disabled:opacity-50"
           >
-            {promptsLoading ? '読み込み中...' : '更新'}
+            {promptsLoading ? "読み込み中..." : "更新"}
           </button>
         </div>
         <select
@@ -136,7 +168,10 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
         <div className="mt-3 flex items-center justify-between">
           <div className="text-xs text-gray-500">
             {selectedPrompt && prompts && (
-              <span>説明: {prompts.find(p => p.name === selectedPrompt)?.description}</span>
+              <span>
+                説明:{" "}
+                {prompts.find((p) => p.name === selectedPrompt)?.description}
+              </span>
             )}
           </div>
           <button
@@ -148,7 +183,6 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
           </button>
         </div>
       </div>
-
       {/* プロンプト内容表示モーダル */}
       {showPromptContent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -161,8 +195,18 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
                 onClick={() => setShowPromptContent(false)}
                 className="text-gray-500 hover:text-gray-700"
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -182,13 +226,12 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
           </div>
         </div>
       )}
-
       <div
         {...getRootProps()}
         className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
           isDragActive
-            ? 'border-blue-400 bg-blue-50'
-            : 'border-gray-300 hover:border-gray-400'
+            ? "border-blue-400 bg-blue-50"
+            : "border-gray-300 hover:border-gray-400"
         }`}
       >
         <input {...getInputProps()} />
@@ -207,14 +250,17 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
             />
           </svg>
           {isDragActive ? (
-            <p className="text-lg text-blue-600">ファイルをドロップしてください</p>
+            <p className="text-lg text-blue-600">
+              ファイルをドロップしてください
+            </p>
           ) : (
             <div>
               <p className="text-lg text-gray-600">
                 ファイルをドラッグ&ドロップするか、クリックして選択
               </p>
               <p className="text-sm text-gray-500">
-                YAML, CWL, Shell, C, Python, JavaScript, TypeScript, JSONなど対応
+                YAML, CWL, Shell, C, Python, JavaScript, TypeScript,
+                JSONなど対応
                 <br />
                 最大10ファイル、1ファイル10MBまで
               </p>
@@ -222,7 +268,6 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
           )}
         </div>
       </div>
-
       {selectedFiles.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-lg font-medium text-gray-900">
@@ -235,11 +280,15 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
               >
                 <div className="flex items-center space-x-3">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${getSeverityColor(file.name)}`}>
-                    {file.name.split('.').pop()?.toUpperCase()}
+                  <span
+                    className={`px-2 py-1 rounded text-xs font-medium ${getSeverityColor(file.name)}`}
+                  >
+                    {file.name.split(".").pop()?.toUpperCase()}
                   </span>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {file.name}
+                    </p>
                     <p className="text-xs text-gray-500">
                       {(file.size / 1024).toFixed(1)} KB
                     </p>
@@ -250,8 +299,18 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
                   className="text-red-500 hover:text-red-700 p-1"
                   disabled={uploadMutation.isPending}
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
@@ -260,38 +319,40 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, onUploadError 
         </div>
       )}
 
-      {selectedFiles.length > 0 && (
-        <div className="flex justify-end">
-          <button
-            onClick={handleUpload}
-            disabled={uploadMutation.isPending}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {uploadMutation.isPending ? (
-              <div className="flex items-center space-x-2">
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                <span>アップロード中...</span>
-              </div>
-            ) : (
-              'アップロードして検証開始'
-            )}
-          </button>
-        </div>
-      )}
+      <div className="flex justify-end">
+        <button
+          onClick={handleUpload}
+          disabled={selectedFiles.length === 0 || uploadMutation.isPending}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {uploadMutation.isPending ? (
+            <div className="flex items-center space-x-2">
+              <svg
+                className="animate-spin h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+              <span>アップロード中...</span>
+            </div>
+          ) : (
+            "アップロードして検証開始"
+          )}
+        </button>
+      </div>
     </div>
   );
 };
