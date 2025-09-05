@@ -16,7 +16,8 @@
         "dbaeumer.vscode-eslint",
         "bradlc.vscode-tailwindcss",
         "ms-vscode.vscode-json",
-        "anthropic.claude-code"
+        "anthropic.claude-code",
+        "fill-labs.dependi"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
