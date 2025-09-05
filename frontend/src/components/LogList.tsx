@@ -181,7 +181,7 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                         className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}
                       >
                         {log.status === "completed"
-                          ? "完了"
+                          ? "完了!"
                           : log.status === "processing"
                             ? "処理中"
                             : "失敗"}
@@ -197,7 +197,7 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                     </div>
 
                     <div className="flex items-center space-x-4">
-                      {log.average_score && (
+                      {typeof log.average_score === "number" && (
                         <div className="text-right">
                           <p className="text-sm text-gray-600">平均スコア</p>
                           <p
@@ -307,7 +307,7 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                           className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(logDetail.status)}`}
                         >
                           {logDetail.status === "completed"
-                            ? "完了"
+                            ? "完了!!"
                             : logDetail.status === "processing"
                               ? "処理中"
                               : "失敗"}
@@ -337,13 +337,14 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                               className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(file.status)}`}
                             >
                               {file.status === "completed"
-                                ? "完了"
+                                ? "完了!!!"
                                 : file.status === "processing"
                                   ? "処理中"
                                   : "失敗"}
                             </span>
                           </div>
-                          {file.score && (
+                          {file.status === "completed" &&
+                          typeof file.score === "number" ? (
                             <div className="text-right">
                               <span className="text-sm text-gray-600">
                                 スコア:{" "}
@@ -352,6 +353,18 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                                 className={`text-lg font-bold ${getScoreColor(file.score)}`}
                               >
                                 {file.score}
+                              </span>
+                            </div>
+                          ) : file.status === "processing" ? (
+                            <div className="text-right">
+                              <span className="text-sm text-gray-600">
+                                処理中...
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="text-right">
+                              <span className="text-sm text-red-600">
+                                検証失敗
                               </span>
                             </div>
                           )}
