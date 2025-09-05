@@ -356,3 +356,6 @@ vite.config.ts.timestamp-*
 
 # temporary files
 tmp/
+
+.claude/
+.vscode/
