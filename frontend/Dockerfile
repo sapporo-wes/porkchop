@@ -1,4 +1,4 @@
-FROM node:22-alpine AS builder
+FROM node:24.7.0-alpine3.22 AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,6 @@ COPY package*.json ./
 COPY tsconfig*.json ./
 COPY vite.config.ts ./
 COPY tailwind.config.js ./
-COPY postcss.config.js ./
 
 # Install dependencies
 RUN npm install
@@ -21,7 +20,7 @@ COPY index.html ./
 RUN npm run build
 
 # Production stage
-FROM nginx:alpine
+FROM nginx:1.29.1-alpine3.22
 
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html

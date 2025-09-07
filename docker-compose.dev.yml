@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   frontend-dev:
-    image: node:22-alpine
+    image: node:24.7.0-alpine3.22
     working_dir: /app
     ports:
       - "3000:3000"
@@ -47,7 +45,7 @@ services:
   ollama-stub:
     build: ./ollama-stub
     ports:
-      - "11435:11434"  # デバッグ用ポート
+      - "11435:11434" # デバッグ用ポート
     volumes:
       - ./ollama-stub/responses:/app/responses
     restart: unless-stopped
