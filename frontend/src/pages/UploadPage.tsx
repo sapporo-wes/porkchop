@@ -1,19 +1,21 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import FileUpload from '../components/FileUpload';
-import ValidationResult from '../components/ValidationResult';
-import apiService from '../services/api';
-import { ValidationBatch, ActiveBatch } from '../types';
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import FileUpload from "../components/FileUpload";
+import ValidationResult from "../components/ValidationResult";
+import apiService from "../services/api";
+import { ValidationBatch } from "../types";
 
 export default function UploadPage() {
-  const [currentBatch, setCurrentBatch] = useState<ValidationBatch | null>(null);
+  const [currentBatch, setCurrentBatch] = useState<ValidationBatch | null>(
+    null
+  );
   const [showResults, setShowResults] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // 進行中のバッチを取得（ブラウザリロード時の復旧用）
   const { data: activeBatches } = useQuery({
-    queryKey: ['active-batches'],
+    queryKey: ["active-batches"],
     queryFn: apiService.getActiveBatches,
     refetchOnMount: true,
     enabled: !currentBatch, // 既に進行中のバッチがある場合は実行しない
@@ -31,7 +33,7 @@ export default function UploadPage() {
         total_files: latestActiveBatch.total_files,
         completed_files: latestActiveBatch.completed_files,
         files: [], // 詳細はValidationResultコンポーネントで取得
-        created_at: latestActiveBatch.created_at
+        created_at: latestActiveBatch.created_at,
       };
       setCurrentBatch(restoredBatch);
       setShowResults(true);
@@ -87,8 +89,18 @@ export default function UploadPage() {
               onClick={() => setError(null)}
               className="ml-auto text-red-400 hover:text-red-600"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
