@@ -10,6 +10,7 @@ services:
     environment:
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=gemma3n:e4b
+      - OLLAMA_FORMAT_PATH=format/generate.schema.json
 
 volumes:
   vscode-server:

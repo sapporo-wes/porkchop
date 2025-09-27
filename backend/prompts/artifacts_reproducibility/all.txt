@@ -1,0 +1,31 @@
+You are given a genomic data analysis pipeline. Your task is to check whether the pipeline produces reproducible artefacts — meaning that the same inputs and conditions will always lead to the same outputs. Carefully analyze the pipeline and answer the following:
+
+1. Determinism:
+   - Does the pipeline use random number generation without setting a fixed seed?
+   - Are parallel or multithreaded steps non-deterministic (e.g., order of reads processed, unordered output files)?
+   - If yes, explain why reproducibility may be affected.
+
+2. External dependencies:
+   - Does the pipeline fetch files or software from the internet without specifying a fixed version, checksum, or date?
+   - Does it depend on “latest” or moving-target resources that may change over time?
+   - Identify such dependencies.
+
+3. Environment dependence:
+   - Does the pipeline embed environment-specific data (timestamps, hostnames, absolute paths) into outputs?
+   - Could small differences in computing environments (e.g., OS version, compiler, locale) lead to different results?
+
+4. Metadata and provenance:
+   - Does the pipeline record versions of software, reference genomes, and parameters used?
+   - Are outputs traceable back to the exact conditions of the run?
+
+5. Intermediate file handling:
+   - Are intermediate file names and paths deterministic, or are they random and inconsistent across runs?
+   - Could race conditions in temporary file handling cause differences?
+
+6. Explanation:
+   - Provide a detailed assessment of reproducibility.
+   - If the pipeline is reproducible, explain why.
+   - If not, identify specific steps that could cause outputs to differ between runs.
+
+Final assessment:
+State clearly whether the pipeline is reproducible under identical inputs and conditions, and if not, which factors limit reproducibility.

@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["severity", "description", "lines", "type"],
+    "properties": {
+      "severity": {
+        "type": "string",
+        "enum": ["high", "medium", "low"]
+      },
+      "description": {
+        "type": "string"
+      },
+      "lines": {
+        "type": ["array", "null"],
+        "items": { "type": "integer" },
+        "minItems": 1
+      },
+      "type": {
+        "type": "string",
+        "examples": ["security", "quality", "best_practice"]
+      }
+    }
+  }
+}

@@ -24,6 +24,7 @@ services:
       - OLLAMA_HOST=http://ollama-stub:11434
       # - OLLAMA_HOST=http://ollama:11434      # 本物のOllamaを使用する場合
       - OLLAMA_MODEL=gemma3n:e4b
+      - OLLAMA_FORMAT_PATH=format/generate.schema.json
       - DATABASE_URL=sqlite:///./data/validation.db
     volumes:
       - ./backend:/app

@@ -1,99 +1,124 @@
 import asyncio
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import status as fastapi_status
 
-from models.database import get_db
-from services.validation_service import ValidationService
+from models.database import db_dependency
+from schema import (
+    PromptCategoryKind,
+    PromptCatName,
+    PromptInfo,
+    Status,
+    ValidationBatchResponse,
+    ValidationFileModel,
+)
+from services.validation_service import ValidationService, change_batch_status
 
 router = APIRouter()
 validation_service = ValidationService()
+# TODO do not hardcode
+semaphore = asyncio.Semaphore(3)
 
 
-async def process_file_validation_background_async(
-    file_id: str, prompt_name: str = "validation_prompt"
-):
-    """非同期バックグラウンドタスク - Ollamaをブロックしない"""
-    db = next(get_db())
-    try:
-        await validation_service.process_file_validation_async(file_id, db, prompt_name)
-    finally:
-        db.close()
+async def _run_with_limit(coro):
+    async with semaphore:
+        return await coro
 
 
-async def process_file_validation_background(
-    file_id: str, prompt_name: str = "validation_prompt"
-):
-    """後方互換性のための同期バックグラウンドタスク（非推奨）"""
-    db = next(get_db())
-    try:
-        validation_service.process_file_validation(file_id, db, prompt_name)
-    finally:
-        db.close()
-
-
-@router.post("/validate")
+@router.post(
+    "/validate",
+    response_model=ValidationBatchResponse,
+    status_code=fastapi_status.HTTP_202_ACCEPTED,
+)
 async def validate_files(
-    files: list[UploadFile] = File(...),
-    prompt_name: str = Form("validation_prompt"),
-    db: Session = Depends(get_db),
+    db: db_dependency,
+    upload_files: list[UploadFile] = File(...),
+    prompt_category_names: list[PromptCatName] = Form(
+        ...,
+        description="Prompt category and name in the format 'category::name' (e.g. ['pipeline_validity::all'] )",
+    ),
 ):
-    if not files:
-        raise HTTPException(status_code=400, detail="No files provided")
+    if not upload_files:
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail="No files provided"
+        )
 
-    if len(files) > 10:
-        raise HTTPException(status_code=400, detail="Maximum 10 files allowed")
+    if len(upload_files) > 30:
+        # TODO configurable
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 30 files allowed",
+        )
 
-    file_data = []
-    for file in files:
-        if file.size > 10 * 1024 * 1024:
+    if not prompt_category_names:
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_400_BAD_REQUEST,
+            detail="No prompt category/name provided",
+        )
+
+    file_models: list[ValidationFileModel] = []
+    for file in upload_files:
+        if file.size is not None and file.size > 3 * 1024 * 1024:
+            # TODO configurable
             raise HTTPException(
-                status_code=400, detail=f"File {file.filename} exceeds 10MB limit"
+                status_code=fastapi_status.HTTP_400_BAD_REQUEST,
+                detail=f"File {file.filename} exceeds 3MB limit",
             )
 
         content = await file.read()
-        file_data.append(
-            {"filename": file.filename, "content": content.decode("utf-8")}
+        try:
+            content_decoded = content.decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise HTTPException(
+                status_code=fastapi_status.HTTP_400_BAD_REQUEST,
+                detail=f"File {file.filename} is not valid UTF-8",
+            ) from e
+        file_models.append(
+            ValidationFileModel(
+                file_name=file.filename or "N/A",
+                content=content_decoded,
+                file_type=validation_service._get_file_type(file.filename or "N/A"),
+            )
         )
 
-    batch = validation_service.create_validation_batch(file_data, db)
-
-    # 非同期タスクとして実行（FastAPIワーカーをブロックしない）
-    for validation_file in batch.files:
-        asyncio.create_task(
-            process_file_validation_background_async(validation_file.id, prompt_name)
+    prompt_infos: list[PromptInfo] = []
+    for cat_name in prompt_category_names:
+        parts = cat_name.split("::")
+        if len(parts) != 2:
+            raise HTTPException(
+                status_code=fastapi_status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid prompt category/name format: {cat_name}. Expected format 'category::name'",
+            )
+        category_str, name = parts
+        category: PromptCategoryKind = PromptCategoryKind(category_str)
+        prompt_infos.append(
+            PromptInfo(
+                category=category,
+                name=name,
+            )
         )
 
-    return {
-        "batch_id": batch.id,
-        "status": batch.status,
-        "total_files": batch.total_files,
-        "completed_files": batch.completed_files,
-        "files": [
-            {"file_id": f.id, "filename": f.filename, "status": f.status}
-            for f in batch.files
-        ],
-    }
+    batch, files = validation_service.create_validation_batch_and_files(
+        file_models, prompt_infos, db
+    )
 
+    try:
+        change_batch_status(batch, Status.processing, db)
+        for i, prompt_task in enumerate(batch.prompt_results):
+            # TODO currently errors occurred in each tasks are not gathered. Need logging.
+            asyncio.create_task(
+                _run_with_limit(
+                    validation_service.process_file_validation(
+                        batch.id, prompt_task, i, files, db
+                    )
+                )
+            )
+    except Exception as e:
+        change_batch_status(batch, Status.failed, db)
+        print("Error starting validation tasks:", e)
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to validate",
+        ) from e
 
-@router.get("/validate/{batch_id}/status")
-async def get_validation_status(batch_id: str, db: Session = Depends(get_db)):
-    result = validation_service.get_batch_status(batch_id, db)
-
-    if not result["success"]:
-        raise HTTPException(status_code=404, detail=result["error"])
-
-    return {
-        "batch_id": result["batch_id"],
-        "status": result["status"],
-        "total_files": result["total_files"],
-        "completed_files": result["completed_files"],
-        "files": result["files"],
-    }
-
-
-@router.get("/validate/active")
-async def get_active_validation_batches(db: Session = Depends(get_db)):
-    """進行中の検証バッチを取得する（ブラウザリロード時の復旧用）"""
-    active_batches = validation_service.get_active_batches(db)
-    return {"active_batches": active_batches}
+    return batch

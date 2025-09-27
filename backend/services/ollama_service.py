@@ -1,16 +1,47 @@
 import asyncio
 import json
 import os
-from typing import Any
+from dataclasses import dataclass
+from pathlib import Path
 
-import ollama
+from ollama import AsyncClient, GenerateResponse, Options
+from pydantic.json_schema import JsonSchemaValue
+
+from schema import (
+    PromptInfo,
+    Status,
+    ValidationFile,
+    ValidationIssue,
+    ValidationPromptResult,
+)
+
+
+@dataclass
+class OllamaOptions:
+    # Both seed and temperature are currently set to ollama's default value.
+    seed: int = 0
+    temperature: float = 0.8
 
 
 class OllamaService:
-    def __init__(self, host: str = None, model: str = None):
+    def __init__(
+        self,
+        host: str | None = None,
+        model: str | None = None,
+        options: OllamaOptions | None = None,
+    ):
         self.host = host or os.getenv("OLLAMA_HOST", "http://ollama:11434")
         self.model = model or os.getenv("OLLAMA_MODEL", "gemma3n:e4b")
-        self.client = ollama.Client(host=self.host)
+        # self.client = Client(host=self.host)
+        self.client = AsyncClient(host=self.host)
+        self._options: Options = self._construct_options(options or OllamaOptions())
+
+        self._schema: JsonSchemaValue = self._load_format_schema(
+            Path(os.getenv("OLLAMA_FORMAT_PATH", "format/generate.schema.json"))
+        )
+
+    def _construct_options(self, options: OllamaOptions) -> Options:
+        return Options(seed=options.seed, temperature=options.temperature)
 
     def fix_unescaped_quotes_in_json_strings(self, json_str: str) -> str:
         """JSON文字列値内の未エスケープダブルクオートを修正"""
@@ -62,59 +93,110 @@ class OllamaService:
 
         return "".join(out)
 
-    async def validate_file_async(
-        self, file_content: str, file_type: str, prompt: str
-    ) -> dict[str, Any]:
-        """非同期でファイルを検証する"""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None, self._sync_validate_file, file_content, file_type, prompt
-        )
+    # async def validate_files_with_prompt(
+    #     self,
+    #     files: list[ValidationFile],
+    #     prompt_info: PromptInfo,
+    #     prompt_content: str,
+    #     prompt_task: ValidationPromptResult,
+    # ) -> None:
+    #     loop = asyncio.get_event_loop()
+    #     return await loop.run_in_executor(
+    #         None,
+    #         self._validate_files_with_prompt,
+    #         files,
+    #         prompt_info,
+    #         prompt_content,
+    #         prompt_task,
+    #     )
 
-    def _sync_validate_file(
-        self, file_content: str, file_type: str, prompt: str
-    ) -> dict[str, Any]:
-        """同期的なファイル検証処理（内部使用）"""
-        full_prompt = (
-            f"{prompt}\n\nFile Type: {file_type}\nFile Content:\n{file_content}"
-        )
+    async def validate_files_with_prompt(
+        self,
+        files: list[ValidationFile],
+        prompt_info: PromptInfo,
+        prompt_content: str,
+        prompt_task: ValidationPromptResult,
+    ) -> None:
+        """Validate multiple with a single prompt."""
+        prompt = self._construct_prompt(files, prompt_content)
+        try:
+            # TODO: do we need "thinking" options when the model supports it
+            # generate_response: GenerateResponse = self.client.generate(
+            generate_response: GenerateResponse = await self.client.generate(
+                model=self.model,
+                prompt=prompt,
+                stream=False,
+                options=self._options,
+                format=self._schema,
+            )
+        except Exception as e:
+            # TODO NEED LOGGING
+            prompt_task.status = Status.failed
+            prompt_task.error_message = str(e)
+            return
 
         try:
-            response = self.client.generate(
-                model=self.model, prompt=full_prompt, stream=False
+            response_text = generate_response["response"]
+            total_duration: int = generate_response["total_duration"]  # in nanoseconds
+            load_duration: int = generate_response["load_duration"]  # in nanoseconds
+            prompt_eval_duration: int = generate_response[
+                "prompt_eval_duration"
+            ]  # in nanoseconds
+            eval_duration: int = generate_response["eval_duration"]  # in nanoseconds
+
+            response: list[ValidationIssue] | None = (
+                self._extract_issues_from_response_text(response_text)
             )
+        except json.decoder.JSONDecodeError as e:
+            # TODO NEED LOGGING
+            prompt_task.status = Status.failed
+            prompt_task.error_message = f"Failed to parse response: {str(e)}"
+            return
 
-            response_text = response["response"]
+        prompt_task.status = Status.completed
+        prompt_task.result = response
+        prompt_task.total_duration_ns = total_duration
+        prompt_task.eval_duration_ns = eval_duration
+        prompt_task.load_duration_ns = load_duration
+        prompt_task.prompt_eval_duration_ns = prompt_eval_duration
+        return
 
-            # Extract JSON from markdown code blocks if present
-            if "```json" in response_text:
-                start = response_text.find("```json") + 7
-                end = response_text.find("```", start)
-                if end != -1:
-                    response_text = response_text[start:end].strip()
+    def _extract_issues_from_response_text(
+        self, text: str
+    ) -> list[ValidationIssue] | None:
+        # TODO escaping quotes in json string may be needed if exists
+
+        if not text.strip():
+            raise ValueError("Response is empty")
+
+        tmp_result = json.loads(text)
+        if isinstance(tmp_result, list):
+            return [ValidationIssue.model_validate(item) for item in tmp_result]
+        else:
+            raise ValueError("Response is not in a format as expected")
+
+    def _construct_prompt(
+        self, files: list[ValidationFile], prompt_content: str
+    ) -> str:
+        prompt = f"{prompt_content}\n\n"
+        for file in files:
+            prompt += (
+                f"\n\n---\nFile Name: {file.file_name}\nFile Content:\n{file.content}"
+            )
+        return prompt
+
+    def _load_format_schema(self, path: Path) -> JsonSchemaValue:
+        """Load JSON schema from a file."""
+        if not path.exists():
+            raise FileNotFoundError(f"Schema file not found: {path}")
+
+        with path.open("r", encoding="utf-8") as f:
             try:
-                # JSON内の一般的な未エスケープクオートを修正
-                fixed_response_text = self.fix_unescaped_quotes_in_json_strings(
-                    response_text
-                )
-                print(fixed_response_text)
-                result = json.loads(fixed_response_text)
-                return {"success": True, "result": result}
-            except json.JSONDecodeError:
-                return {
-                    "success": False,
-                    "error": "Invalid JSON response from LLM",
-                    "raw_response": response_text,
-                }
+                schema = json.load(f)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON schema in the file {path}: {e}") from e
 
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    def validate_file(
-        self, file_content: str, file_type: str, prompt: str
-    ) -> dict[str, Any]:
-        """後方互換性のための同期メソッド（非推奨）"""
-        return self._sync_validate_file(file_content, file_type, prompt)
+        return schema
 
     def check_model_availability(self) -> bool:
         try:

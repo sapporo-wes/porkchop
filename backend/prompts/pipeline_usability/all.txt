@@ -1,0 +1,22 @@
+You are given a genomic data analysis pipeline. Your task is to check whether the pipeline can run smoothly without problems. Carefully analyze the pipeline and answer the following:
+
+1. Software and licensing:
+   - Are all required tools and dependencies clearly specified?
+   - Are there any licensing issues (e.g., commercial tools that require a paid license, software with unclear or restrictive usage terms)?
+   - Flag if the pipeline mixes incompatible software licenses.
+
+2. Machine specifications:
+   - Does the pipeline specify resource requirements such as CPU cores, memory, GPU, or disk space?
+   - Are these requirements reasonable for typical genomic analysis, or are they excessive or unrealistic?
+   - Identify steps that may fail due to insufficient resources.
+
+3. File paths and permissions:
+   - Does the pipeline reference valid file paths (e.g., reference genome, BED files, intermediate files)?
+   - Could there be issues with read or write permissions (e.g., writing into system directories, assuming unrestricted access)?
+   - Are temporary directories and output directories properly handled?
+
+4. Command correctness:
+   - Are all commands well-formed and likely to exist in standard environments?
+   - Identify possible typos, undefined variables, or missing executables.
+
+If the pipeline appears usable, state clearly that all requirements (software, machine, permissions, commands) are satisfied. If not, list the specific usability issues and explain their impact.

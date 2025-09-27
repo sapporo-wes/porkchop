@@ -1,87 +1,122 @@
 import math
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import desc
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException, Query
+from fastapi import status as fastapi_status
+from sqlalchemy import desc, distinct, func, select
+from sqlalchemy.exc import SQLAlchemyError
 
-from models.database import ValidationBatch, ValidationFile, get_db
+from models.database import ValidationBatchORM, ValidationFileORM, db_dependency
+from schema import (
+    ActiveBatchResponse,
+    ValidationBatchResponse,
+    ValidationLogsPagenatedResponse,
+)
+from services.converter import batch_orm_to_active_response, batch_orm_to_schema
 
 router = APIRouter()
 
 
-@router.get("/logs")
+@router.get("/logs", response_model=ValidationLogsPagenatedResponse)
 async def get_validation_logs(
+    db: db_dependency,
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    per_page: int = Query(20, ge=1, le=100),
     search: str | None = None,
-    db: Session = Depends(get_db),
 ):
-    query = db.query(ValidationBatch).order_by(desc(ValidationBatch.created_at))
+    try:
+        # query
+        stmt = select(ValidationBatchORM).order_by(desc(ValidationBatchORM.created_at))
+        if search:
+            stmt = stmt.join(ValidationFileORM).where(
+                ValidationFileORM.file_name.contains(search)
+            )
 
-    if search:
-        query = query.join(ValidationFile).filter(
-            ValidationFile.filename.contains(search)
+        # count total items
+        count_stmt = select(func.count(distinct(ValidationBatchORM.id)))
+        if search:
+            count_stmt = (
+                count_stmt.select_from(ValidationBatchORM)
+                .join(ValidationFileORM)
+                .where(ValidationFileORM.file_name.contains(search))
+            )
+        total = db.execute(count_stmt).scalar_one()
+        total_pages = math.ceil(total / per_page) if total > 0 else 1
+
+        if page > total_pages:
+            raise HTTPException(
+                status_code=fastapi_status.HTTP_404_NOT_FOUND,
+                detail="Page number out of range",
+            )
+
+        offset = (page - 1) * per_page
+        paged_stmt = stmt.offset(offset).limit(per_page)
+
+        result = db.execute(paged_stmt)
+        batch_orms = result.scalars().all()
+        logs = [batch_orm_to_schema(batch) for batch in batch_orms]
+
+        return ValidationLogsPagenatedResponse(
+            logs=logs,
+            curr_page=page,
+            total_pages=total_pages,
+            per_page=per_page,
+            total=total,
+            has_next=page < total_pages,
+            has_prev=page > 1,
         )
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"DB Error: {str(e)}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Error: {str(e)}",
+        ) from e
 
-    total = query.count()
-    batches = query.offset((page - 1) * limit).limit(limit).all()
 
-    total_pages = math.ceil(total / limit)
+@router.get("/logs/{batch_id}", response_model=ValidationBatchResponse)
+async def get_validation_log_detail(batch_id: int, db: db_dependency):
+    try:
+        batch_orm: ValidationBatchORM | None = db.get(ValidationBatchORM, batch_id)
+        if not batch_orm:
+            raise HTTPException(
+                status_code=fastapi_status.HTTP_404_NOT_FOUND, detail="Log not found"
+            )
+        batch = batch_orm_to_schema(batch_orm)
+        return batch
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"DB Error: {str(e)}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Error: {str(e)}",
+        ) from e
 
-    logs = []
-    for batch in batches:
-        files = (
-            db.query(ValidationFile).filter(ValidationFile.batch_id == batch.id).all()
+
+@router.get("/logs/active", response_model=list[ActiveBatchResponse])
+async def get_active_validation_batches(db: db_dependency):
+    try:
+        stmt = select(ValidationBatchORM).where(
+            ValidationBatchORM.status.in_(["waiting", "processing"]).order_by(
+                desc(ValidationBatchORM.created_at)
+            )
         )
-        scores = [f.score for f in files if f.score is not None]
-        average_score = sum(scores) / len(scores) if scores else None
+        result = db.execute(stmt)
+        active_batch_orms = result.scalars().all()
 
-        logs.append(
-            {
-                "batch_id": batch.id,
-                "total_files": batch.total_files,
-                "completed_files": batch.completed_files,
-                "average_score": average_score,
-                "status": batch.status,
-                "created_at": batch.created_at.isoformat(),
-            }
-        )
-
-    return {
-        "logs": logs,
-        "total": total,
-        "page": page,
-        "limit": limit,
-        "total_pages": total_pages,
-    }
-
-
-@router.get("/logs/{batch_id}")
-async def get_validation_log_detail(batch_id: str, db: Session = Depends(get_db)):
-    batch = db.query(ValidationBatch).filter(ValidationBatch.id == batch_id).first()
-
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
-
-    files = db.query(ValidationFile).filter(ValidationFile.batch_id == batch_id).all()
-
-    return {
-        "batch_id": batch.id,
-        "status": batch.status,
-        "total_files": batch.total_files,
-        "completed_files": batch.completed_files,
-        "created_at": batch.created_at.isoformat(),
-        "files": [
-            {
-                "file_id": f.id,
-                "filename": f.filename,
-                "file_content": f.file_content,
-                "file_type": f.file_type,
-                "status": f.status,
-                "score": f.score,
-                "validation_result": f.validation_result,
-                "created_at": f.created_at.isoformat(),
-            }
-            for f in files
-        ],
-    }
+        return [batch_orm_to_active_response(batch) for batch in active_batch_orms]
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"DB Error: {str(e)}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Error: {str(e)}",
+        ) from e

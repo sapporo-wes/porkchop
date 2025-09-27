@@ -1,0 +1,24 @@
+You are given a genomic data analysis pipeline. Your task is to evaluate whether the artefacts (intermediate files and outputs) contain any personal, sensitive, or identifying information that could compromise anonymity. Carefully analyze the pipeline and answer the following:
+
+1. Personal identifiers:
+   - Do the outputs contain human-readable identifiers such as names, email addresses, institution names, patient IDs, or file paths with usernames?
+   - If yes, list them and explain why they are problematic.
+
+2. Raw or identifiable genomic data:
+   - Does the pipeline output full human genome sequences, unmasked reads, or metadata that could be used to identify individuals?
+   - Does it anonymize or mask sensitive data where appropriate?
+
+3. System information leaks:
+   - Do the artefacts include details such as hostnames, operating system information, user IDs, or environment variables written into logs or outputs?
+   - If yes, explain how these could reduce anonymity.
+
+4. Unnecessary metadata:
+   - Does the pipeline include extra metadata in outputs that is not required for the intended analysis but could reveal personal or system information?
+
+5. Explanation:
+   - Provide a detailed assessment of whether the pipeline preserves anonymity.
+   - If all artefacts are anonymous and safe, state this clearly.
+   - If not, identify which outputs risk exposing personal or sensitive data.
+
+Final assessment:
+State clearly whether the pipeline preserves anonymity in its artefacts, and if not, what information is at risk and why.

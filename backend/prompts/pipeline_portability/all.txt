@@ -1,0 +1,29 @@
+You are given a genomic data analysis pipeline. Your task is to evaluate whether the pipeline is portable and can run on different computing environments (e.g., local workstation, HPC cluster, cloud). Carefully analyze the pipeline and answer the following:
+
+1. Hard-coded paths and assumptions:
+   - Does the pipeline use absolute paths tied to a specific system (e.g., /home/user/, /scratch/, C:\temp\)?
+   - Does it assume a particular file system layout that may not exist elsewhere?
+   - If yes, identify them.
+
+2. Operating system and shell dependence:
+   - Does the pipeline rely on OS-specific commands (e.g., Linux-only, Mac-only, Windows-only)?
+   - Does it assume a particular shell (bash, zsh, sh) without checking compatibility?
+
+3. Containerization and workflow standards:
+   - Is the pipeline provided in a portable form such as Docker, Singularity, CWL, WDL, or Nextflow?
+   - If not, does it require manual installation of tools and dependencies?
+
+4. Dependency management:
+   - Are dependencies clearly specified with versions, and installable across systems?
+   - Does the pipeline require manual compilation or obscure software that reduces portability?
+
+5. Cloud and HPC compatibility:
+   - Does the pipeline rely on a specific job scheduler (e.g., Slurm, PBS, SGE) or does it work across multiple environments?
+   - Does it require root or administrator privileges that may not be available?
+
+6. Explanation:
+   - Provide a detailed explanation of portability strengths and weaknesses.
+   - If the pipeline is portable, state why. If not, identify the limiting factors.
+
+Final assessment:
+State clearly whether the pipeline is portable across environments, and if not, what specific changes would be needed to improve portability.

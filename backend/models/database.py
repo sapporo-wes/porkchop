@@ -1,9 +1,10 @@
 import os
 from datetime import datetime
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy import (
     JSON,
-    Column,
     DateTime,
     ForeignKey,
     Integer,
@@ -11,45 +12,88 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy import (
+    Enum as SAEnum,
+)
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    Session,
+    mapped_column,
+    relationship,
+    sessionmaker,
+)
+from sqlalchemy.sql import text
+
+from schema import Status
+
+#########################################################
+# Types
+#########################################################
+int_pk = Annotated[int, mapped_column(Integer, primary_key=True, autoincrement=True)]
+# uuid_pk = Annotated[
+#     uuid.UUID, mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+# ]
+status_enum = Annotated[
+    Status, mapped_column(SAEnum(Status, native_enum=False), nullable=False)
+]
+timestamp = Annotated[
+    datetime,
+    mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP")),
+]
+#########################################################
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./validation.db")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
-class ValidationBatch(Base):
+class ValidationBatchORM(Base):
     __tablename__ = "validation_batches"
 
-    id = Column(String, primary_key=True)
-    status = Column(String, nullable=False)
-    total_files = Column(Integer, nullable=False)
-    completed_files = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id: Mapped[int_pk] = mapped_column(comment="Batch ID")
+    status: Mapped[status_enum] = mapped_column(comment="Current status of the batch")
 
-    files = relationship("ValidationFile", back_populates="batch")
+    completed_prompts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    prompt_results: Mapped[list[dict]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    created_at: Mapped[timestamp] = mapped_column(
+        comment="Creation timestamp", server_default=text("CURRENT_TIMESTAMP")
+    )
+    updated_at: Mapped[timestamp] = mapped_column(
+        onupdate=text("CURRENT_TIMESTAMP"),
+        server_default=text("CURRENT_TIMESTAMP"),
+        comment="Last update timestamp",
+    )
+
+    files: Mapped[list["ValidationFileORM"]] = relationship(
+        back_populates="batch", cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
-class ValidationFile(Base):
+class ValidationFileORM(Base):
     __tablename__ = "validation_files"
 
-    id = Column(String, primary_key=True)
-    batch_id = Column(String, ForeignKey("validation_batches.id"), nullable=False)
-    filename = Column(String, nullable=False)
-    file_content = Column(Text, nullable=False)
-    file_type = Column(String, nullable=False)
-    validation_result = Column(JSON, nullable=True)
-    score = Column(Integer, nullable=True)
-    status = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id: Mapped[int_pk] = mapped_column(comment="File ID")
+    file_name: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    file_type: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[timestamp] = mapped_column(
+        server_default=text("CURRENT_TIMESTAMP"), comment="Creation timestamp"
+    )
 
-    batch = relationship("ValidationBatch", back_populates="files")
+    batch_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("validation_batches.id", ondelete="CASCADE"),
+        index=True,
+    )
+    batch: Mapped["ValidationBatchORM"] = relationship(back_populates="files")
 
 
 def init_db():
@@ -62,3 +106,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+db_dependency = Annotated[Session, Depends(get_db)]

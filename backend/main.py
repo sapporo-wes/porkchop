@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,10 +9,18 @@ from routers import logs, prompts, upload
 
 load_dotenv()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
 app = FastAPI(
     title="Porkchop Workflow Validator",
     description="Workflow and code file validation system using Ollama LLM",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -24,11 +34,6 @@ app.add_middleware(
 app.include_router(upload.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
 app.include_router(prompts.router, prefix="/api")
-
-
-@app.on_event("startup")
-async def startup_event():
-    init_db()
 
 
 @app.get("/")

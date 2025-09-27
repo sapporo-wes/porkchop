@@ -1,51 +1,69 @@
+import hashlib
 from pathlib import Path
-from typing import Any
+
+from schema import PromptCategory, PromptCategoryKind, PromptContentResponse, PromptInfo
 
 
 class PromptService:
     def __init__(self):
         self.prompts_dir = Path(__file__).parent.parent / "prompts"
 
-    def get_available_prompts(self) -> list[dict[str, Any]]:
+    def get_available_prompts(self) -> list[PromptCategory] | None:
         """
         promptsディレクトリからプロンプトファイル一覧を取得
         """
-        prompts = []
+        prompt_list: list[PromptCategory] = []
 
         if not self.prompts_dir.exists():
-            return prompts
+            return None
 
-        for file_path in self.prompts_dir.glob("*.txt"):
-            name = file_path.stem  # ファイル名から拡張子を除いた部分
-            filename = file_path.name
+        for category in PromptCategoryKind:
+            category_dir = self.prompts_dir / category.value
+            if not category_dir.exists():
+                continue
 
-            # ファイルの最初の数行から説明を抽出（コメント行があれば）
-            description = self._extract_description(file_path)
+            prompt_files_in_category = category_dir.glob("*.txt")
+            prompt_infos = []
 
-            prompts.append(
-                {
-                    "name": name,
-                    "filename": filename,
-                    "description": description or f"Prompt: {name}",
-                }
-            )
+            for prompt_file in prompt_files_in_category:
+                name = prompt_file.stem
+                description = self._extract_description(prompt_file)
+                sha256 = self._calc_sha256(prompt_file.read_bytes())
+                prompt_infos.append(
+                    PromptInfo(
+                        name=name,
+                        category=category,
+                        description=description,
+                        sha256=sha256,
+                    )
+                )
 
-        # 名前でソート
-        prompts.sort(key=lambda x: x["name"])
-        return prompts
+            if prompt_infos:
+                prompt_list.append(PromptCategory(name=category, prompts=prompt_infos))
 
-    def load_prompt(self, prompt_name: str) -> str | None:
+        # return None when no prompts found
+        if not prompt_list:
+            return None
+        return prompt_list
+
+    def load_prompt_content(
+        self, prompt_name: str, category: PromptCategoryKind
+    ) -> PromptContentResponse | None:
         """
         指定されたプロンプト名のファイル内容を読み込み
         """
-        file_path = self.prompts_dir / f"{prompt_name}.txt"
+        file_path = self.prompts_dir / category.value / f"{prompt_name}.txt"
 
         if not file_path.exists():
             return None
 
         try:
-            with open(file_path, encoding="utf-8") as f:
-                return f.read()
+            content_bytes = file_path.read_bytes()
+            content = content_bytes.decode("utf-8")
+            sha256 = self._calc_sha256(content_bytes)
+            return PromptContentResponse(
+                name=prompt_name, category=category, content=content, sha256=sha256
+            )
         except Exception as e:
             print(f"Error loading prompt {prompt_name}: {e}")
             return None
@@ -64,10 +82,15 @@ class PromptService:
 
                 # 最初の文（ピリオドまで）を説明として使用
                 first_sentence = first_line.split(".")[0]
-                if first_sentence and len(first_sentence) < 100:  # 空文字列でなく、短い場合のみ説明として使用
+                if (
+                    first_sentence and len(first_sentence) < 100
+                ):  # 空文字列でなく、短い場合のみ説明として使用
                     return first_sentence
 
         except Exception:
             pass
 
         return None
+
+    def _calc_sha256(self, data: bytes) -> str:
+        return hashlib.sha256(data).hexdigest()

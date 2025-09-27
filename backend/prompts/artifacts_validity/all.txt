@@ -1,0 +1,25 @@
+You are given a genomic data analysis pipeline. Your task is to evaluate whether the artefacts (intermediate files and outputs) are valid and sufficient to achieve the stated objectives of the pipeline. Carefully analyze the pipeline and answer the following:
+
+1. Completeness:
+   - Are all required final outputs produced (e.g., BAM/VCF for variant calling, expression tables for RNA-seq, annotated reports for clinical pipelines)?
+   - Are important intermediate files generated as expected for downstream steps?
+
+2. Correct format:
+   - Are the outputs written in standard, widely accepted formats (e.g., BAM, VCF, FASTQ, GTF, TSV, JSON)?
+   - Could any outputs be incomplete, corrupted, or non-standard?
+
+3. Logical consistency:
+   - Do the outputs correspond to the stated purpose of the pipeline?
+   - If the pipeline claims to perform a certain analysis (e.g., variant calling, differential expression), are the outputs appropriate for that claim?
+
+4. Usability of outputs:
+   - Do outputs include necessary supporting files (e.g., index files for BAM/VCF, summary reports, QC metrics)?
+   - Are the outputs in a state that allows immediate use for downstream analysis?
+
+5. Explanation:
+   - Provide a detailed assessment of artefact validity.
+   - If the artefacts are complete, valid, and sufficient, state this clearly.
+   - If not, identify which artefacts are missing, invalid, or inconsistent with the objectives.
+
+Final assessment:
+State clearly whether the pipeline produces valid artefacts that meet its objectives, and if not, explain the gaps or issues.
