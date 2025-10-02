@@ -118,7 +118,10 @@ class OllamaService:
         prompt_task: ValidationPromptResult,
     ) -> None:
         """Validate multiple with a single prompt."""
+        print(f"Schema: \n{self._schema}\n")
         prompt = self._construct_prompt(files, prompt_content)
+        print(f"----\nConstructed prompt: \n{prompt}\n")
+
         try:
             # TODO: do we need "thinking" options when the model supports it
             # generate_response: GenerateResponse = self.client.generate(
@@ -134,6 +137,8 @@ class OllamaService:
             prompt_task.status = Status.failed
             prompt_task.error_message = str(e)
             return
+
+        print(f"Ollama response: {generate_response}")
 
         try:
             response_text = generate_response["response"]

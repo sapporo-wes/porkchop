@@ -98,12 +98,24 @@ async def validate_files(
             )
         )
 
+    # try:
     batch, files = validation_service.create_validation_batch_and_files(
         file_models, prompt_infos, db
     )
+    # except Exception as e:
+    #     raise HTTPException(
+    #         status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #         detail="Failed to create validation batch",
+    #     ) from e
+
+    print(batch)
+    for a in files:
+        print(a)
 
     try:
         change_batch_status(batch, Status.processing, db)
+        print("--")
+        print(batch)
         for i, prompt_task in enumerate(batch.prompt_results):
             # TODO currently errors occurred in each tasks are not gathered. Need logging.
             asyncio.create_task(

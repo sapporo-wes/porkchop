@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from schema import PromptCategory, PromptCategoryKind, PromptContentResponse
 from services.prompt_service import PromptService
@@ -27,8 +27,8 @@ async def get_available_prompts():
         ) from e
 
 
-@router.get("/prompts/", response_model=PromptContentResponse)
-async def get_prompt_content(name: str, cat: str):
+@router.get("/prompts/content", response_model=PromptContentResponse)
+async def get_prompt_content(name: str = Query(...), cat: str = Query(...)):
     """
     指定されたプロンプトの内容を取得
     """

@@ -39,7 +39,9 @@ class PromptService:
                 )
 
             if prompt_infos:
-                prompt_list.append(PromptCategory(name=category, prompts=prompt_infos))
+                prompt_list.append(
+                    PromptCategory(category=category, prompts=prompt_infos)
+                )
 
         # return None when no prompts found
         if not prompt_list:
@@ -52,7 +54,7 @@ class PromptService:
         """
         指定されたプロンプト名のファイル内容を読み込み
         """
-        file_path = self.prompts_dir / category.value / f"{prompt_name}.txt"
+        file_path = self.prompts_dir / category / f"{prompt_name}.txt"
 
         if not file_path.exists():
             return None

@@ -76,7 +76,7 @@ async def get_validation_logs(
         ) from e
 
 
-@router.get("/logs/{batch_id}", response_model=ValidationBatchResponse)
+@router.get("/logs/batches/{batch_id}", response_model=ValidationBatchResponse)
 async def get_validation_log_detail(batch_id: int, db: db_dependency):
     try:
         batch_orm: ValidationBatchORM | None = db.get(ValidationBatchORM, batch_id)
@@ -101,10 +101,10 @@ async def get_validation_log_detail(batch_id: int, db: db_dependency):
 @router.get("/logs/active", response_model=list[ActiveBatchResponse])
 async def get_active_validation_batches(db: db_dependency):
     try:
-        stmt = select(ValidationBatchORM).where(
-            ValidationBatchORM.status.in_(["waiting", "processing"]).order_by(
-                desc(ValidationBatchORM.created_at)
-            )
+        stmt = (
+            select(ValidationBatchORM)
+            .where(ValidationBatchORM.status.in_(["waiting", "processing"]))
+            .order_by(desc(ValidationBatchORM.created_at))
         )
         result = db.execute(stmt)
         active_batch_orms = result.scalars().all()

@@ -43,13 +43,6 @@ def file_orm_to_schema(file_orm: ValidationFileORM) -> ValidationFile:
     )
 
 
-def sync_from_orm_inplace(dst_model: BaseModel, orm_obj: object) -> None:
-    tmp = dst_model.__class__.model_validate(orm_obj, from_attributes=True)
-    data = tmp.model_dump()
-    for key, value in data.items():
-        setattr(dst_model, key, value)
-
-
 def batch_orm_to_active_response(
     batch_orm: ValidationBatchORM,
 ) -> ActiveBatchResponse:

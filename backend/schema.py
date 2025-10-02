@@ -1,4 +1,5 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -30,10 +31,11 @@ class IssueType(str, Enum):
     security = "security"
     quality = "quality"
     best_practice = "best_practice"
+    malicious_operation = "malicious_operation"
 
 
 class ValidationIssue(BaseModel):
-    """An issue found in files during validation. A list of these is the schema for the model's JSON output."""
+    """An issue LLM found in files. A list of these is the schema for the model's JSON output."""
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -71,7 +73,6 @@ class PromptInfo(BaseModel):
     description: str | None = None
     sha256: str | None = None  # SHA256 hash of the prompt file taken when listing.
 
-    @property
     @computed_field
     def has_all(self) -> bool:
         return self.name == "all"
@@ -80,7 +81,7 @@ class PromptInfo(BaseModel):
 class PromptCategory(BaseModel):
     """Group of prompts."""
 
-    name: PromptCategoryKind
+    category: PromptCategoryKind
     prompts: list[PromptInfo]
 
 
@@ -126,7 +127,8 @@ class ValidationFileModel(BaseModel):
     content: str
     file_type: str
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(datetime.utc), description="UTC timestamp"
+        default_factory=lambda: datetime.now(ZoneInfo("UTC")),
+        description="UTC timestamp",
     )
 
 
@@ -153,17 +155,19 @@ class ValidationBatchModel(BaseModel):
     completed_prompts: int
     prompt_results: list[ValidationPromptResult]
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(datetime.utc), description="UTC timestamp"
+        default_factory=lambda: datetime.now(ZoneInfo("UTC")),
+        description="UTC timestamp",
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(datetime.utc), description="UTC timestamp"
+        default_factory=lambda: datetime.now(ZoneInfo("UTC")),
+        description="UTC timestamp",
     )
 
-    @property
+    @computed_field
     def total_files(self) -> int:
         return len(self.file_ids)
 
-    @property
+    @computed_field
     def total_prompts(self) -> int:
         return len(self.prompt_results)
 

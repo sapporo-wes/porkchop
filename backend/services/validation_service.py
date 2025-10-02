@@ -14,7 +14,6 @@ from schema import (
 from services.converter import (
     batch_orm_to_schema,
     file_orm_to_schema,
-    sync_from_orm_inplace,
 )
 from services.ollama_service import OllamaService
 from services.prompt_service import PromptService
@@ -50,34 +49,58 @@ class ValidationService:
         prompts: list[PromptInfo],
         db: db_dependency,
     ) -> tuple[ValidationBatchResponse, list[ValidationFile]]:
-        # Add file record
-        file_orms = [ValidationFileORM(**file.model_dump()) for file in file_models]
-        db.add_all(file_orms)
-        db.commit()
-        for file_orm in file_orms:
-            db.refresh(file_orm)
-
-        files: list[ValidationFile] = [
-            file_orm_to_schema(file_orm) for file_orm in file_orms
-        ]
-
-        batch = ValidationBatchModel(
+        batch_orm = ValidationBatchORM(
             status=Status.waiting,
-            file_ids=[
-                ValidationFileId(id=file_orm.id, file_name=file_orm.file_name)
-                for file_orm in file_orms
-            ],
             completed_prompts=0,
             prompt_results=[
-                ValidationPromptResult(**prompt.model_dump()) for prompt in prompts
+                ValidationPromptResult(prompt=prompt).model_dump() for prompt in prompts
             ],
         )
-        batch_orm = ValidationBatchORM(**batch.model_dump())
+
+        batch_orm.files = [
+            ValidationFileORM(**file.model_dump()) for file in file_models
+        ]
+
         db.add(batch_orm)
-        db.commit()
+        db.flush()
+
+        files: list[ValidationFile] = [
+            file_orm_to_schema(file_orm) for file_orm in batch_orm.files
+        ]
+
         db.refresh(batch_orm)
+        db.commit()
 
         return (batch_orm_to_schema(batch_orm), files)
+
+        # # Add file record
+        # file_orms = [ValidationFileORM(**file.model_dump()) for file in file_models]
+        # db.add_all(file_orms)
+        # db.commit()
+        # for file_orm in file_orms:
+        #     db.refresh(file_orm)
+
+        # files: list[ValidationFile] = [
+        #     file_orm_to_schema(file_orm) for file_orm in file_orms
+        # ]
+
+        # batch = ValidationBatchModel(
+        #     status=Status.waiting,
+        #     file_ids=[
+        #         ValidationFileId(id=file_orm.id, file_name=file_orm.file_name)
+        #         for file_orm in file_orms
+        #     ],
+        #     completed_prompts=0,
+        #     prompt_results=[
+        #         ValidationPromptResult(**prompt.model_dump()) for prompt in prompts
+        #     ],
+        # )
+        # batch_orm = ValidationBatchORM(**batch.model_dump())
+        # db.add(batch_orm)
+        # db.commit()
+        # db.refresh(batch_orm)
+
+        # return (batch_orm_to_schema(batch_orm), files)
 
     async def process_file_validation(
         self,
@@ -90,12 +113,17 @@ class ValidationService:
         # TODO NEED LOGGING
 
         prompt_info = prompt_task.prompt
-        prompt_content = self.prompt_service.load_prompt_content(
+        prompt_content_resp = self.prompt_service.load_prompt_content(
             prompt_info.name, prompt_info.category
         )
+        if prompt_content_resp is None:
+            # TODO need to create proper error
+            raise ValueError(
+                f"Prompt '{prompt_info.category}::{prompt_info.name}' not found"
+            )
 
         await self.ollama_service.validate_files_with_prompt(
-            files, prompt_info, prompt_content, prompt_task
+            files, prompt_info, prompt_content_resp.content, prompt_task
         )
 
         batch: ValidationBatchORM | None = db.get(ValidationBatchORM, batch_id)
@@ -107,6 +135,9 @@ class ValidationService:
             batch.status = Status.completed
         db.commit()
         db.refresh(batch)
+
+        print(f"Updated batch after validation: \n")
+        print(f"{batch.prompt_results}")
 
         return
 
@@ -121,7 +152,7 @@ def change_batch_status(
     db.commit()
     db.refresh(batch)
 
-    sync_from_orm_inplace(batch_orig, batch)
+    batch_orig.status = new_status
 
 
 def increment_completed_prompts_of_batch(batch_id: int, db: db_dependency) -> None:
