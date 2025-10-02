@@ -1,89 +1,103 @@
-import axios from 'axios';
+import axios from "axios";
 import {
   ValidationBatch,
-  ValidationLog,
-  ValidationLogDetail,
-  PaginatedResponse,
-  PromptInfo,
+  ValidationBatchSchema,
+  ValidationLogPagenated,
+  ValidationLogPagenatedSchema,
+  PromptCategory,
+  PromptCategorySchema,
+  PromptContent,
+  PromptContentSchema,
   ActiveBatch,
-} from '../types';
+  ActiveBatchSchema,
+  validateApiResponse,
+} from "../types";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30秒でタイムアウト（検証処理を考慮）
+  timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
-export const apiService = {
-  // ファイルアップロード・検証
-  async uploadFiles(files: File[], promptName: string = 'validation_prompt'): Promise<ValidationBatch> {
-    console.log(API_BASE_URL);
+export const apiClient = {
+  async uploadFiles(
+    files: File[],
+    promptCategoryNames: string[]
+  ): Promise<ValidationBatch> {
     const formData = new FormData();
-    files.forEach((file) => {
-      formData.append('files', file);
-    });
-    formData.append('prompt_name', promptName);
 
-    const response = await api.post('/validate', formData, {
+    files.forEach((file) => {
+      formData.append("upload_files", file);
+    });
+
+    promptCategoryNames.forEach((name) => {
+      formData.append("prompt_category_names", name);
+    });
+
+    const response = await api.post("/validate", formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     });
 
-    return response.data;
+    console.log("Upload response:", response.data);
+
+    return validateApiResponse(response.data, ValidationBatchSchema);
   },
 
-  // 検証状況確認
-  async getValidationStatus(batchId: string): Promise<ValidationBatch> {
-    const response = await api.get(`/validate/${batchId}/status`);
-    return response.data;
-  },
-
-  // 検証ログ一覧取得
+  // 検証ログ一覧取得（新API対応）
   async getValidationLogs(
     page: number = 1,
-    limit: number = 20,
+    per_page: number = 20,
     search?: string
-  ): Promise<PaginatedResponse<ValidationLog>> {
+  ): Promise<ValidationLogPagenated> {
     const params = new URLSearchParams({
       page: page.toString(),
-      limit: limit.toString(),
+      per_page: per_page.toString(),
     });
 
     if (search) {
-      params.append('search', search);
+      params.append("search", search);
     }
 
     const response = await api.get(`/logs?${params.toString()}`);
-    return response.data;
+    return validateApiResponse(response.data, ValidationLogPagenatedSchema);
   },
 
-  // 検証ログ詳細取得
-  async getValidationLogDetail(batchId: string): Promise<ValidationLogDetail> {
-    const response = await api.get(`/logs/${batchId}`);
-    return response.data;
+  // 検証ログ詳細取得（IDが数値に変更）
+  async getValidationLogDetail(batchId: number): Promise<ValidationBatch> {
+    const response = await api.get(`/logs/batches/${batchId}`);
+    return validateApiResponse(response.data, ValidationBatchSchema);
   },
 
-  // プロンプト関連
-  async getAvailablePrompts(): Promise<PromptInfo[]> {
-    const response = await api.get('/prompts');
-    return response.data.prompts;
+  async getPromptCategories(): Promise<PromptCategory[]> {
+    const response = await api.get("/prompts");
+    console.log("Prompt categories response:", response.data);
+    return validateApiResponse(response.data, PromptCategorySchema.array());
   },
 
-  async getPromptContent(promptName: string): Promise<{ name: string; content: string }> {
-    const response = await api.get(`/prompts/${promptName}`);
-    return response.data;
+  async getPromptContent(
+    name: string,
+    category: string
+  ): Promise<PromptContent> {
+    const params = new URLSearchParams({
+      name,
+      cat: category,
+    });
+
+    const response = await api.get(`/prompts/content?${params.toString()}`);
+    return validateApiResponse(response.data, PromptContentSchema);
   },
 
-  // 進行中バッチ取得（ブラウザリロード時の復旧用）
+  // 進行中バッチ取得（新API対応）
   async getActiveBatches(): Promise<ActiveBatch[]> {
-    const response = await api.get('/validate/active');
-    return response.data.active_batches;
+    const response = await api.get("/logs/active");
+    return validateApiResponse(response.data, ActiveBatchSchema.array());
   },
 };
 
-export default apiService;
+export default apiClient;

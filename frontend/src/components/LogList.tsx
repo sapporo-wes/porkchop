@@ -1,92 +1,36 @@
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import apiService from "../services/api";
-import { ValidationLog } from "../types";
+import { ValidationBatch } from "../types";
+import { useLogList } from "../hooks/useLogList";
+import { useStatusColors } from "../hooks/useStatusColors";
+import { useSeverityCounts } from "../hooks/useSeverityCounts";
 
 interface LogListProps {
   onError: (error: string) => void;
 }
 
-type RefreshStatus = "idle" | "loading" | "success";
-
 const LogList: React.FC<LogListProps> = ({ onError }) => {
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
-  const [refreshStatus, setRefreshStatus] = useState<RefreshStatus>("idle");
-  const pageSize = 10;
-
   const {
-    data: logsData,
-    isLoading: logsLoading,
-    error: logsError,
-    refetch,
-  } = useQuery({
-    queryKey: ["logs", currentPage, searchTerm],
-    queryFn: () =>
-      apiService.getValidationLogs(currentPage, pageSize, searchTerm),
-  });
+    logsData,
+    logsLoading,
+    logsError,
+    showDetailModal,
+    logDetail,
+    detailLoading,
+    refreshStatus,
+    handleRefresh,
+    handleViewDetail,
+    handleCloseDetail,
+  } = useLogList({ onError, pageSize: 10 });
 
-  const { data: logDetail, isLoading: detailLoading } = useQuery({
-    queryKey: ["log-detail", selectedLogId],
-    queryFn: () =>
-      selectedLogId ? apiService.getValidationLogDetail(selectedLogId) : null,
-    enabled: !!selectedLogId,
-  });
+  const colors = useStatusColors();
+  const severityMethods = useSeverityCounts();
 
-  const handleViewDetail = (batchId: string) => {
-    setSelectedLogId(batchId);
-    setShowDetailModal(true);
-  };
-
-  const handleCloseDetail = () => {
-    setSelectedLogId(null);
-    setShowDetailModal(false);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCurrentPage(1);
-  };
-
-  const handleRefresh = async () => {
-    setRefreshStatus("loading");
-    try {
-      await refetch();
-      setRefreshStatus("success");
-      setTimeout(() => setRefreshStatus("idle"), 2000);
-    } catch (error) {
-      setRefreshStatus("idle");
-      onError("更新に失敗しました");
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-100 text-green-800";
-      case "processing":
-        return "bg-yellow-100 text-yellow-800";
-      case "failed":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-red-600";
-  };
+  const pageSize = 10;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("ja-JP");
   };
 
   if (logsError) {
-    onError("ログの取得に失敗しました");
     return null;
   }
 
@@ -140,22 +84,7 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                   : "更新"}
             </button>
           </div>
-          {/* 検索フォーム */}
-          <form onSubmit={handleSearch} className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="検索..."
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              検索
-            </button>
-          </form>
+          {/* TODO: 検索機能は将来実装 */}
         </div>
 
         {/* ログ一覧 */}
@@ -170,18 +99,18 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                 ログが見つかりませんでした
               </div>
             ) : (
-              logsData?.logs.map((log: ValidationLog) => (
+              logsData?.logs.map((log: ValidationBatch) => (
                 <div
-                  key={log.batch_id}
+                  key={log.id}
                   className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getStatusColor(log.status)}`}
                       >
                         {log.status === "completed"
-                          ? "完了!"
+                          ? "完了"
                           : log.status === "processing"
                             ? "処理中"
                             : "失敗"}
@@ -191,25 +120,35 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                           {formatDate(log.created_at)}
                         </p>
                         <p className="text-sm text-gray-500">
-                          {log.completed_files} / {log.total_files} ファイル
+                          {log.completed_prompts} / {log.total_prompts}{" "}
+                          プロンプト
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-4">
-                      {typeof log.average_score === "number" && (
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">平均スコア</p>
-                          <p
-                            className={`text-lg font-bold ${getScoreColor(log.average_score)}`}
-                          >
-                            {log.average_score}
-                          </p>
-                        </div>
-                      )}
+                      {log.status === "completed" && (() => {
+                        const severityCounts = severityMethods.calculateBatchSeverityCounts(log);
+                        return (
+                          <div className="text-right">
+                            <p className="text-sm text-gray-600 mb-1">Severity数</p>
+                            <div className="flex items-center space-x-2 text-xs font-medium">
+                              <span className={colors.getSeverityColor("high")}>
+                                H:{severityCounts.high}
+                              </span>
+                              <span className={colors.getSeverityColor("medium")}>
+                                M:{severityCounts.medium}
+                              </span>
+                              <span className={colors.getSeverityColor("low")}>
+                                L:{severityCounts.low}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       <button
-                        onClick={() => handleViewDetail(log.batch_id)}
+                        onClick={() => handleViewDetail(log.id)}
                         className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         詳細
@@ -222,30 +161,7 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
           </div>
         )}
 
-        {/* ページネーション */}
-        {logsData && logsData.total > pageSize && (
-          <div className="flex justify-center mt-6 space-x-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              前へ
-            </button>
-
-            <span className="px-3 py-1 text-sm text-gray-600">
-              {currentPage} / {Math.ceil(logsData.total / pageSize)}
-            </span>
-
-            <button
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              disabled={currentPage >= Math.ceil(logsData.total / pageSize)}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              次へ
-            </button>
-          </div>
-        )}
+        {/* TODO: ページネーションは将来実装 */}
       </div>
 
       {/* 詳細モーダル */}
@@ -292,7 +208,7 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                       <div>
                         <span className="text-gray-600">バッチID:</span>
                         <span className="ml-2 font-mono text-xs">
-                          {logDetail.batch_id}
+                          {logDetail.id}
                         </span>
                       </div>
                       <div>
@@ -304,148 +220,127 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                       <div>
                         <span className="text-gray-600">ステータス:</span>
                         <span
-                          className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(logDetail.status)}`}
+                          className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${colors.getStatusColor((logDetail as ValidationBatch).status)}`}
                         >
-                          {logDetail.status === "completed"
-                            ? "完了!!"
-                            : logDetail.status === "processing"
+                          {(logDetail as ValidationBatch).status === "completed"
+                            ? "完了"
+                            : (logDetail as ValidationBatch).status === "processing"
                               ? "処理中"
                               : "失敗"}
                         </span>
                       </div>
                       <div>
                         <span className="text-gray-600">ファイル数:</span>
-                        <span className="ml-2">{logDetail.files.length}</span>
+                        <span className="ml-2">{(logDetail as ValidationBatch).file_ids.length}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* ファイル詳細 */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">ファイル詳細</h4>
-                    {logDetail.files.map((file) => (
-                      <div
-                        key={file.file_id}
-                        className="border border-gray-200 rounded-lg p-4"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-3">
-                            <h5 className="font-medium text-gray-900">
-                              {file.filename}
-                            </h5>
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(file.status)}`}
+                  {/* プロンプト別Severity集計 */}
+                  {(logDetail as ValidationBatch).status === "completed" && (logDetail as ValidationBatch).prompt_results.length > 0 && (
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h4 className="font-medium text-gray-900 mb-3">
+                        プロンプト別Severity集計
+                      </h4>
+                      <div className="space-y-2">
+                        {(logDetail as ValidationBatch).prompt_results.map((promptResult) => {
+                          const severityCounts = severityMethods.calculatePromptSeverityCounts(promptResult);
+                          return (
+                            <div
+                              key={promptResult.prompt.name}
+                              className="flex items-center justify-between bg-white px-3 py-2 rounded"
                             >
-                              {file.status === "completed"
-                                ? "完了!!!"
-                                : file.status === "processing"
-                                  ? "処理中"
-                                  : "失敗"}
-                            </span>
-                          </div>
-                          {file.status === "completed" &&
-                          typeof file.score === "number" ? (
-                            <div className="text-right">
-                              <span className="text-sm text-gray-600">
-                                スコア:{" "}
-                              </span>
-                              <span
-                                className={`text-lg font-bold ${getScoreColor(file.score)}`}
-                              >
-                                {file.score}
-                              </span>
-                            </div>
-                          ) : file.status === "processing" ? (
-                            <div className="text-right">
-                              <span className="text-sm text-gray-600">
-                                処理中...
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="text-right">
-                              <span className="text-sm text-red-600">
-                                検証失敗
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {file.validation_result && (
-                          <div className="space-y-3">
-                            {/* 問題一覧 */}
-                            {file.validation_result.issues &&
-                              file.validation_result.issues.length > 0 && (
-                                <div>
-                                  <h6 className="text-sm font-medium text-gray-700 mb-2">
-                                    検出された問題:
-                                  </h6>
-                                  <div className="space-y-2">
-                                    {file.validation_result.issues.map(
-                                      (issue, index) => (
-                                        <div
-                                          key={index}
-                                          className="bg-gray-50 p-3 rounded"
-                                        >
-                                          <div className="flex items-center space-x-2 mb-1">
-                                            <span
-                                              className={`px-2 py-1 rounded text-xs font-medium ${
-                                                issue.severity === "high"
-                                                  ? "bg-red-100 text-red-800"
-                                                  : issue.severity === "medium"
-                                                    ? "bg-yellow-100 text-yellow-800"
-                                                    : "bg-blue-100 text-blue-800"
-                                              }`}
-                                            >
-                                              {issue.severity}
-                                            </span>
-                                            <span className="text-xs text-gray-600">
-                                              {issue.type}
-                                            </span>
-                                            {issue.line && (
-                                              <span className="text-xs text-gray-500">
-                                                Line {issue.line}
-                                              </span>
-                                            )}
-                                          </div>
-                                          <p className="text-sm text-gray-700">
-                                            {issue.message}
-                                          </p>
-                                        </div>
-                                      )
-                                    )}
-                                  </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-sm font-medium text-gray-900">
+                                  {promptResult.prompt.name}
+                                </span>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getStatusColor(promptResult.status)}`}
+                                >
+                                  {promptResult.status === "completed"
+                                    ? "完了"
+                                    : promptResult.status === "processing"
+                                      ? "処理中"
+                                      : "失敗"}
+                                </span>
+                              </div>
+                              {promptResult.status === "completed" && (
+                                <div className="flex items-center space-x-2 text-xs font-medium">
+                                  <span className={colors.getSeverityColor("high")}>
+                                    H:{severityCounts.high}
+                                  </span>
+                                  <span className={colors.getSeverityColor("medium")}>
+                                    M:{severityCounts.medium}
+                                  </span>
+                                  <span className={colors.getSeverityColor("low")}>
+                                    L:{severityCounts.low}
+                                  </span>
                                 </div>
                               )}
-
-                            {/* 推奨事項 */}
-                            {file.validation_result.recommendations &&
-                              file.validation_result.recommendations.length >
-                                0 && (
-                                <div>
-                                  <h6 className="text-sm font-medium text-gray-700 mb-2">
-                                    推奨事項:
-                                  </h6>
-                                  <ul className="text-sm text-gray-700 space-y-1">
-                                    {file.validation_result.recommendations.map(
-                                      (rec, index) => (
-                                        <li
-                                          key={index}
-                                          className="flex items-start"
-                                        >
-                                          <span className="text-blue-600 mr-2">
-                                            •
-                                          </span>
-                                          {rec}
-                                        </li>
-                                      )
-                                    )}
-                                  </ul>
-                                </div>
-                              )}
-                          </div>
-                        )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
+                    </div>
+                  )}
+
+                  {/* Issue詳細（全プロンプト結果を統合表示） */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900">検出されたIssue</h4>
+                    {(logDetail as ValidationBatch).prompt_results.map((promptResult) => {
+                      if (promptResult.status !== "completed" || !promptResult.result || promptResult.result.length === 0) {
+                        return null;
+                      }
+
+                      return (
+                        <div key={promptResult.prompt.name} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h5 className="font-medium text-gray-900">
+                              {promptResult.prompt.name} ({promptResult.prompt.category})
+                            </h5>
+                            <div className="flex items-center space-x-2 text-xs font-medium">
+                              <span className={colors.getSeverityColor("high")}>
+                                H:{promptResult.result.filter(i => i.severity === "high").length}
+                              </span>
+                              <span className={colors.getSeverityColor("medium")}>
+                                M:{promptResult.result.filter(i => i.severity === "medium").length}
+                              </span>
+                              <span className={colors.getSeverityColor("low")}>
+                                L:{promptResult.result.filter(i => i.severity === "low").length}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            {promptResult.result.map((issue, index) => (
+                              <div
+                                key={index}
+                                className="bg-gray-50 p-3 rounded"
+                              >
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <span
+                                    className={`px-2 py-1 rounded text-xs font-medium ${colors.getSeverityColor(issue.severity)}`}
+                                  >
+                                    {issue.severity}
+                                  </span>
+                                  <span className="text-xs text-gray-600">
+                                    {issue.type}
+                                  </span>
+                                  {issue.lines && issue.lines.length > 0 && (
+                                    <span className="text-xs text-gray-500">
+                                      Lines: {issue.lines.join(", ")}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-700">
+                                  {issue.description}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
