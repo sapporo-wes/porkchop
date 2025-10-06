@@ -32,6 +32,9 @@ class IssueType(str, Enum):
     quality = "quality"
     best_practice = "best_practice"
     malicious_operation = "malicious_operation"
+    licensing = "licensing"
+    machine_specifications = "machine_specifications"
+    file_paths_and_permissions = "file_paths_and_permissions"
 
 
 class ValidationIssue(BaseModel):
@@ -42,7 +45,8 @@ class ValidationIssue(BaseModel):
     severity: Severity
     description: str
     lines: list[int] | None
-    type: IssueType  # Experimental, may be extended or deleted in the future
+    # type: IssueType  # Experimental, may be extended or deleted in the future
+    type: str  # Experimental, may be extended or deleted in the future
 
 
 #######################################################
@@ -150,6 +154,7 @@ class ValidationBatchModel(BaseModel):
 
     model_config = ConfigDict(use_enum_values=True)
 
+    name: str = Field(..., max_length=255, description="Name of the validation batch")
     status: Status = Status.waiting
     file_ids: list[ValidationFileId]
     completed_prompts: int
@@ -197,6 +202,7 @@ class ActiveBatchResponse(BaseModel):
     """list of this is a Response for /api/validation/active_batches"""
 
     id: int
+    name: str
     status: Status
     file_ids: list[ValidationFileId]
     selected_prompts: list[PromptInfo]

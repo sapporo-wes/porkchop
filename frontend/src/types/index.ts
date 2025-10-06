@@ -36,7 +36,8 @@ export const ValidationIssueSchema = z.object({
   severity: SeveritySchema,
   description: z.string(),
   lines: z.array(z.number()).nullable().optional(),
-  type: IssueTypeSchema,
+  // type: IssueTypeSchema,
+  type: z.string(),
 });
 export type ValidationIssue = z.infer<typeof ValidationIssueSchema>;
 
@@ -106,6 +107,7 @@ export type ValidationFile = z.infer<typeof ValidationFileSchema>;
 
 export const ValidationBatchSchema = z.object({
   id: z.number(),
+  name: z.string(),
   status: StatusSchema,
   file_ids: z.array(ValidationFileIdSchema),
   completed_prompts: z.number(),
@@ -136,6 +138,7 @@ export type ValidationLogPagenated = z.infer<
 
 export const ActiveBatchSchema = z.object({
   id: z.number(),
+  name: z.string(),
   status: StatusSchema,
   file_ids: z.array(ValidationFileIdSchema),
   selected_prompts: z.array(PromptInfoSchema),

@@ -107,7 +107,6 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* Upload Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -128,7 +127,7 @@ export default function UploadPage() {
       {/* Validation Results Modal */}
       {showResults && currentBatch && (
         <ValidationResult
-          batchId={currentBatch.batch_id}
+          batchId={currentBatch.id}
           onClose={handleCloseResults}
           isMinimized={isMinimized}
           onToggleMinimize={handleToggleMinimize}

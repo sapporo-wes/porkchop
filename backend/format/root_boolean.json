@@ -1,0 +1,64 @@
+{
+  "type": "object",
+  "required": ["has_issues", "issues"],
+  "properties": {
+    "has_issues": {
+      "type": "boolean",
+      "description": "Indicates whether any issues were found in the file."
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "description", "lines", "type"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "description": {
+            "description": "A detailed description of the issue found in the file.",
+            "type": "string"
+          },
+          "lines": {
+            "description": "The line numbers in the file where the issue occurs.",
+            "type": ["array", "null"],
+            "items": { "type": "integer" },
+            "minItems": 1,
+            "maxItems": 100
+          },
+          "type": {
+            "description": "The category of the issue.",
+            "type": "string",
+            "examples": [
+              "security",
+              "quality",
+              "best_practice",
+              "malicious_operation",
+              "licensing",
+              "machine_specifications",
+              "file_paths_and_permissions",
+              "hardcoded_credentials",
+              "hardcoded_paths",
+              "dependency",
+              "container"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "has_issues": { "const": true } }
+      },
+      "then": {
+        "properties": {
+          "issues": { "minItems": 1 }
+        }
+      }
+    }
+  ]
+}

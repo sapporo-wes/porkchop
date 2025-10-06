@@ -55,13 +55,19 @@ const ValidationResult: React.FC<ValidationResultProps> = ({
             </span>
             {promptSummary.isCompleted && (
               <div className="flex items-center space-x-2">
-                <span className={`text-xs font-bold ${colors.getSeverityTextColor("high")}`}>
+                <span
+                  className={`text-xs font-bold ${colors.getSeverityTextColor("high")}`}
+                >
                   H:{promptSummary.severityCounts.high}
                 </span>
-                <span className={`text-xs font-bold ${colors.getSeverityTextColor("medium")}`}>
+                <span
+                  className={`text-xs font-bold ${colors.getSeverityTextColor("medium")}`}
+                >
                   M:{promptSummary.severityCounts.medium}
                 </span>
-                <span className={`text-xs font-bold ${colors.getSeverityTextColor("low")}`}>
+                <span
+                  className={`text-xs font-bold ${colors.getSeverityTextColor("low")}`}
+                >
                   L:{promptSummary.severityCounts.low}
                 </span>
               </div>
@@ -96,10 +102,14 @@ const ValidationResult: React.FC<ValidationResultProps> = ({
                       className="border-l-4 border-gray-200 pl-4 py-2"
                     >
                       <div className="flex items-start space-x-2">
-                        <span className="text-lg">{colors.getTypeIcon(issue.type)}</span>
+                        <span className="text-lg">
+                          {colors.getTypeIcon(issue.type)}
+                        </span>
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center space-x-2">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${colors.getSeverityColor(issue.severity)}`}>
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-medium ${colors.getSeverityColor(issue.severity)}`}
+                            >
                               {colors.getSeverityText(issue.severity)}
                             </span>
                             {issue.lines && issue.lines.length > 0 && (
@@ -108,7 +118,9 @@ const ValidationResult: React.FC<ValidationResultProps> = ({
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-800">{issue.description}</p>
+                          <p className="text-sm text-gray-800">
+                            {issue.description}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -209,7 +221,7 @@ const ValidationResult: React.FC<ValidationResultProps> = ({
 
   // フル表示
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
@@ -236,9 +248,12 @@ const ValidationResult: React.FC<ValidationResultProps> = ({
           <div className="mt-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">
-                進捗: {currentBatch.completed_prompts} / {currentBatch.total_prompts} プロンプト
+                進捗: {currentBatch.completed_prompts} /{" "}
+                {currentBatch.total_prompts} プロンプト
               </span>
-              <span className={`px-2 py-1 rounded text-xs font-medium ${colors.getStatusColor(currentBatch.status)}`}>
+              <span
+                className={`px-2 py-1 rounded text-xs font-medium ${colors.getStatusColor(currentBatch.status)}`}
+              >
                 {colors.getStatusText(currentBatch.status)}
               </span>
             </div>
@@ -255,19 +270,25 @@ const ValidationResult: React.FC<ValidationResultProps> = ({
               <div className="flex justify-center space-x-4">
                 <div className="flex items-center space-x-1">
                   <span className="text-sm text-gray-600">High:</span>
-                  <span className={`text-sm font-bold ${colors.getSeverityTextColor("high")}`}>
+                  <span
+                    className={`text-sm font-bold ${colors.getSeverityTextColor("high")}`}
+                  >
                     {totalSeverityCounts.high}
                   </span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <span className="text-sm text-gray-600">Medium:</span>
-                  <span className={`text-sm font-bold ${colors.getSeverityTextColor("medium")}`}>
+                  <span
+                    className={`text-sm font-bold ${colors.getSeverityTextColor("medium")}`}
+                  >
                     {totalSeverityCounts.medium}
                   </span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <span className="text-sm text-gray-600">Low:</span>
-                  <span className={`text-sm font-bold ${colors.getSeverityTextColor("low")}`}>
+                  <span
+                    className={`text-sm font-bold ${colors.getSeverityTextColor("low")}`}
+                  >
                     {totalSeverityCounts.low}
                   </span>
                 </div>

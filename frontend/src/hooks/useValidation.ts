@@ -11,10 +11,10 @@ export const useValidation = (options: UseValidationOptions = {}) => {
   const mutation = useMutation<
     ValidationBatch,
     Error,
-    { files: File[]; promptCategoryNames: string[] }
+    { files: File[]; promptCategoryNames: string[]; batchName: string }
   >({
-    mutationFn: ({ files, promptCategoryNames }) =>
-      apiClient.uploadFiles(files, promptCategoryNames),
+    mutationFn: ({ files, promptCategoryNames, batchName }) =>
+      apiClient.uploadFiles(files, promptCategoryNames, batchName),
     onSuccess: (batch) => options.onUploadSuccess?.(batch),
     onError: (error: any) =>
       options.onUploadError?.(error.message || "不明なエラーが発生しました"),

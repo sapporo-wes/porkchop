@@ -57,6 +57,9 @@ class ValidationBatchORM(Base):
     __tablename__ = "validation_batches"
 
     id: Mapped[int_pk] = mapped_column(comment="Batch ID")
+    name: Mapped[str] = mapped_column(
+        String(255), nullable=False, comment="Name of the validation batch"
+    )
     status: Mapped[status_enum] = mapped_column(comment="Current status of the batch")
 
     completed_prompts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

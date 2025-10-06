@@ -47,9 +47,11 @@ class ValidationService:
         self,
         file_models: list[ValidationFileModel],
         prompts: list[PromptInfo],
+        batch_name: str,
         db: db_dependency,
     ) -> tuple[ValidationBatchResponse, list[ValidationFile]]:
         batch_orm = ValidationBatchORM(
+            name=batch_name,
             status=Status.waiting,
             completed_prompts=0,
             prompt_results=[
@@ -125,19 +127,25 @@ class ValidationService:
         await self.ollama_service.validate_files_with_prompt(
             files, prompt_info, prompt_content_resp.content, prompt_task
         )
+        print(f"Validate prompt result: \n{prompt_task}\n")
 
         batch: ValidationBatchORM | None = db.get(ValidationBatchORM, batch_id)
         if not batch:
             raise ValueError(f"Batch with ID {batch_id} not found")
-        batch.prompt_results[prompt_index] = prompt_task.model_dump()
+
+        updated_results = batch.prompt_results.copy()
+        updated_results[prompt_index] = prompt_task.model_dump()
+        batch.prompt_results = updated_results
+
         batch.completed_prompts += 1
         if batch.completed_prompts >= len(batch.prompt_results):
             batch.status = Status.completed
         db.commit()
         db.refresh(batch)
 
-        print(f"Updated batch after validation: \n")
+        print("Updated batch after validation: \n")
         print(f"{batch.prompt_results}")
+        print(f"name: {batch.name}")
 
         return
 
@@ -175,7 +183,11 @@ def update_prompt_result_of_batch(
     batch: ValidationBatchORM | None = db.get(ValidationBatchORM, batch_id)
     if not batch:
         raise ValueError(f"Batch with ID {batch_id} not found")
-    batch.prompt_results[prompt_index] = prompt_result.model_dump()
+
+    updated_results = batch.prompt_results.copy()
+    updated_results[prompt_index] = prompt_result.model_dump()
+    batch.prompt_results = updated_results
+
     db.commit()
     db.refresh(batch)
 

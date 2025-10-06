@@ -20,7 +20,8 @@ from schema import (
 class OllamaOptions:
     # Both seed and temperature are currently set to ollama's default value.
     seed: int = 0
-    temperature: float = 0.8
+    temperature: float = 0.0
+    stop = None
 
 
 class OllamaService:
@@ -41,7 +42,9 @@ class OllamaService:
         )
 
     def _construct_options(self, options: OllamaOptions) -> Options:
-        return Options(seed=options.seed, temperature=options.temperature)
+        return Options(
+            seed=options.seed, temperature=options.temperature, stop=options.stop
+        )
 
     def fix_unescaped_quotes_in_json_strings(self, json_str: str) -> str:
         """JSON文字列値内の未エスケープダブルクオートを修正"""
@@ -118,6 +121,11 @@ class OllamaService:
         prompt_task: ValidationPromptResult,
     ) -> None:
         """Validate multiple with a single prompt."""
+        print(f"Model: {self.model}\n")
+        self._schema: JsonSchemaValue = self._load_format_schema(
+            Path("format/root_boolean.json")
+        )
+        self._options: Options = self._construct_options(OllamaOptions())
         print(f"Schema: \n{self._schema}\n")
         prompt = self._construct_prompt(files, prompt_content)
         print(f"----\nConstructed prompt: \n{prompt}\n")
@@ -133,6 +141,7 @@ class OllamaService:
                 format=self._schema,
             )
         except Exception as e:
+            print(f"Error occurred while generating response: {str(e)}")
             # TODO NEED LOGGING
             prompt_task.status = Status.failed
             prompt_task.error_message = str(e)
@@ -152,6 +161,7 @@ class OllamaService:
             response: list[ValidationIssue] | None = (
                 self._extract_issues_from_response_text(response_text)
             )
+            print(f"Extracted issues: {response}")
         except json.decoder.JSONDecodeError as e:
             # TODO NEED LOGGING
             prompt_task.status = Status.failed
@@ -175,8 +185,15 @@ class OllamaService:
             raise ValueError("Response is empty")
 
         tmp_result = json.loads(text)
-        if isinstance(tmp_result, list):
-            return [ValidationIssue.model_validate(item) for item in tmp_result]
+        has_issues = tmp_result.get("has_issues")
+        if isinstance(has_issues, bool) and has_issues:
+            issues = tmp_result.get("issues")
+            if isinstance(issues, list):
+                return [ValidationIssue.model_validate(item) for item in issues]
+            else:
+                raise ValueError("Response is not in a format as expected")
+        elif isinstance(has_issues, bool) and not has_issues:
+            return []
         else:
             raise ValueError("Response is not in a format as expected")
 

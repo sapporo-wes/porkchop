@@ -2,12 +2,16 @@ import { ValidationBatch } from "../types";
 import { useLogList } from "../hooks/useLogList";
 import { useStatusColors } from "../hooks/useStatusColors";
 import { useSeverityCounts } from "../hooks/useSeverityCounts";
+import { useMarkdownExport } from "../hooks/useMarkdownExport";
+import type { PromptInfo } from "../types";
 
 interface LogListProps {
   onError: (error: string) => void;
 }
 
 const LogList: React.FC<LogListProps> = ({ onError }) => {
+  const pageSize = 10;
+
   const {
     logsData,
     logsLoading,
@@ -19,15 +23,24 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
     handleRefresh,
     handleViewDetail,
     handleCloseDetail,
-  } = useLogList({ onError, pageSize: 10 });
+  } = useLogList({ onError, pageSize });
 
   const colors = useStatusColors();
   const severityMethods = useSeverityCounts();
 
-  const pageSize = 10;
+  const { exportToMarkdown } = useMarkdownExport();
+
+  const handleQuickExport = function (log: ValidationBatch) {
+    exportToMarkdown(log, `porkchop_report_${log.id}.md`);
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("ja-JP");
+  };
+
+  const promptInfoToString = (promptInfo: PromptInfo) => {
+    // return `${promptInfo.name} (${promptInfo.category})`;
+    return `${promptInfo.category}::${promptInfo.name}`;
   };
 
   if (logsError) {
@@ -104,7 +117,8 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                   key={log.id}
                   className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-center justify-between">
+                  {/* <div className="flex items-center justify-between"> */}
+                  <div className="flex items-center justify-start gap-4">
                     <div className="flex items-center space-x-4">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getStatusColor(log.status)}`}
@@ -126,26 +140,40 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-4">
-                      {log.status === "completed" && (() => {
-                        const severityCounts = severityMethods.calculateBatchSeverityCounts(log);
-                        return (
-                          <div className="text-right">
-                            <p className="text-sm text-gray-600 mb-1">Severity数</p>
-                            <div className="flex items-center space-x-2 text-xs font-medium">
-                              <span className={colors.getSeverityColor("high")}>
-                                H:{severityCounts.high}
-                              </span>
-                              <span className={colors.getSeverityColor("medium")}>
-                                M:{severityCounts.medium}
-                              </span>
-                              <span className={colors.getSeverityColor("low")}>
-                                L:{severityCounts.low}
-                              </span>
+                    <div className="text-medium text-gray-900">
+                      <p>{log.name}</p>
+                    </div>
+
+                    <div className="flex items-center space-x-4 ml-auto">
+                      {log.status === "completed" &&
+                        (() => {
+                          const severityCounts =
+                            severityMethods.calculateBatchSeverityCounts(log);
+                          return (
+                            <div className="text-right">
+                              <p className="text-sm text-gray-600 mb-1">
+                                Severity数
+                              </p>
+                              <div className="flex items-center space-x-2 text-xs font-medium">
+                                <span
+                                  className={colors.getSeverityColor("high")}
+                                >
+                                  H:{severityCounts.high}
+                                </span>
+                                <span
+                                  className={colors.getSeverityColor("medium")}
+                                >
+                                  M:{severityCounts.medium}
+                                </span>
+                                <span
+                                  className={colors.getSeverityColor("low")}
+                                >
+                                  L:{severityCounts.low}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })()}
+                          );
+                        })()}
 
                       <button
                         onClick={() => handleViewDetail(log.id)}
@@ -166,12 +194,19 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
 
       {/* 詳細モーダル */}
       {showDetailModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-6xl max-h-[90vh] overflow-hidden flex flex-col w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                検証ログ詳細
-              </h3>
+              <div className="flex items-center gap-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  検証ログ詳細
+                </h3>
+                {logDetail && (
+                  <span className="text-base font-medium text-gray-600">
+                    {logDetail.name}
+                  </span>
+                )}
+              </div>
               <button
                 onClick={handleCloseDetail}
                 className="text-gray-500 hover:text-gray-700"
@@ -224,123 +259,186 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                         >
                           {(logDetail as ValidationBatch).status === "completed"
                             ? "完了"
-                            : (logDetail as ValidationBatch).status === "processing"
+                            : (logDetail as ValidationBatch).status ===
+                                "processing"
                               ? "処理中"
                               : "失敗"}
                         </span>
                       </div>
                       <div>
+                        <span className="text-gray-600">更新日時:</span>
+                        <span className="ml-2">
+                          {formatDate(logDetail.updated_at)}
+                        </span>
+                      </div>
+                      <div>
                         <span className="text-gray-600">ファイル数:</span>
-                        <span className="ml-2">{(logDetail as ValidationBatch).file_ids.length}</span>
+                        <span className="ml-2">
+                          {(logDetail as ValidationBatch).file_ids.length}
+                        </span>
                       </div>
                     </div>
                   </div>
 
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      ファイル一覧
+                    </h4>
+                    TODO
+                  </div>
+
                   {/* プロンプト別Severity集計 */}
-                  {(logDetail as ValidationBatch).status === "completed" && (logDetail as ValidationBatch).prompt_results.length > 0 && (
+                  {(logDetail as ValidationBatch).completed_prompts > 0 && (
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <h4 className="font-medium text-gray-900 mb-3">
                         プロンプト別Severity集計
                       </h4>
                       <div className="space-y-2">
-                        {(logDetail as ValidationBatch).prompt_results.map((promptResult) => {
-                          const severityCounts = severityMethods.calculatePromptSeverityCounts(promptResult);
-                          return (
-                            <div
-                              key={promptResult.prompt.name}
-                              className="flex items-center justify-between bg-white px-3 py-2 rounded"
-                            >
-                              <div className="flex items-center space-x-3">
-                                <span className="text-sm font-medium text-gray-900">
-                                  {promptResult.prompt.name}
-                                </span>
-                                <span
-                                  className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getStatusColor(promptResult.status)}`}
-                                >
-                                  {promptResult.status === "completed"
-                                    ? "完了"
-                                    : promptResult.status === "processing"
-                                      ? "処理中"
-                                      : "失敗"}
-                                </span>
-                              </div>
-                              {promptResult.status === "completed" && (
-                                <div className="flex items-center space-x-2 text-xs font-medium">
-                                  <span className={colors.getSeverityColor("high")}>
-                                    H:{severityCounts.high}
+                        {(logDetail as ValidationBatch).prompt_results.map(
+                          (promptResult) => {
+                            const severityCounts =
+                              severityMethods.calculatePromptSeverityCounts(
+                                promptResult
+                              );
+                            return (
+                              <div
+                                key={promptInfoToString(promptResult.prompt)}
+                                className="flex items-center justify-between bg-white px-3 py-2 rounded"
+                              >
+                                <div className="flex items-center space-x-3">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {promptInfoToString(promptResult.prompt)}
                                   </span>
-                                  <span className={colors.getSeverityColor("medium")}>
-                                    M:{severityCounts.medium}
-                                  </span>
-                                  <span className={colors.getSeverityColor("low")}>
-                                    L:{severityCounts.low}
+                                  <span
+                                    className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getStatusColor(promptResult.status)}`}
+                                  >
+                                    {promptResult.status === "completed"
+                                      ? "完了"
+                                      : promptResult.status === "processing"
+                                        ? "処理中"
+                                        : "失敗"}
                                   </span>
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                                {promptResult.status === "completed" && (
+                                  <div className="flex items-center space-x-2 text-xs font-medium">
+                                    <span
+                                      className={colors.getSeverityColor(
+                                        "high"
+                                      )}
+                                    >
+                                      H:{severityCounts.high}
+                                    </span>
+                                    <span
+                                      className={colors.getSeverityColor(
+                                        "medium"
+                                      )}
+                                    >
+                                      M:{severityCounts.medium}
+                                    </span>
+                                    <span
+                                      className={colors.getSeverityColor("low")}
+                                    >
+                                      L:{severityCounts.low}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+                        )}
                       </div>
                     </div>
                   )}
 
                   {/* Issue詳細（全プロンプト結果を統合表示） */}
                   <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">検出されたIssue</h4>
-                    {(logDetail as ValidationBatch).prompt_results.map((promptResult) => {
-                      if (promptResult.status !== "completed" || !promptResult.result || promptResult.result.length === 0) {
-                        return null;
-                      }
+                    <h4 className="font-medium text-gray-900">
+                      検出されたIssue
+                    </h4>
+                    {(logDetail as ValidationBatch).prompt_results.map(
+                      (promptResult) => {
+                        if (
+                          promptResult.status !== "completed" ||
+                          !promptResult.result ||
+                          promptResult.result.length === 0
+                        ) {
+                          return null;
+                        }
 
-                      return (
-                        <div key={promptResult.prompt.name} className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h5 className="font-medium text-gray-900">
-                              {promptResult.prompt.name} ({promptResult.prompt.category})
-                            </h5>
-                            <div className="flex items-center space-x-2 text-xs font-medium">
-                              <span className={colors.getSeverityColor("high")}>
-                                H:{promptResult.result.filter(i => i.severity === "high").length}
-                              </span>
-                              <span className={colors.getSeverityColor("medium")}>
-                                M:{promptResult.result.filter(i => i.severity === "medium").length}
-                              </span>
-                              <span className={colors.getSeverityColor("low")}>
-                                L:{promptResult.result.filter(i => i.severity === "low").length}
-                              </span>
+                        return (
+                          <div
+                            key={promptInfoToString(promptResult.prompt)}
+                            className="border border-gray-200 rounded-lg p-4"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <h5 className="font-medium text-gray-900">
+                                {promptInfoToString(promptResult.prompt)}
+                              </h5>
+                              <div className="flex items-center space-x-2 text-xs font-medium">
+                                <span
+                                  className={colors.getSeverityColor("high")}
+                                >
+                                  H:
+                                  {
+                                    promptResult.result.filter(
+                                      (i) => i.severity === "high"
+                                    ).length
+                                  }
+                                </span>
+                                <span
+                                  className={colors.getSeverityColor("medium")}
+                                >
+                                  M:
+                                  {
+                                    promptResult.result.filter(
+                                      (i) => i.severity === "medium"
+                                    ).length
+                                  }
+                                </span>
+                                <span
+                                  className={colors.getSeverityColor("low")}
+                                >
+                                  L:
+                                  {
+                                    promptResult.result.filter(
+                                      (i) => i.severity === "low"
+                                    ).length
+                                  }
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              {promptResult.result.map((issue, index) => (
+                                <div
+                                  key={index}
+                                  className="bg-gray-50 p-3 rounded"
+                                >
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <span
+                                      className={`px-2 py-1 rounded text-xs font-medium ${colors.getSeverityColor(issue.severity)}`}
+                                    >
+                                      {issue.severity}
+                                    </span>
+                                    <span className="text-xs text-gray-600">
+                                      {issue.type}
+                                    </span>
+                                    {issue.lines && issue.lines.length > 0 && (
+                                      <span className="text-xs text-gray-500">
+                                        Lines: {issue.lines.join(", ")}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-700">
+                                    {issue.description}
+                                  </p>
+                                </div>
+                              ))}
                             </div>
                           </div>
-
-                          <div className="space-y-2">
-                            {promptResult.result.map((issue, index) => (
-                              <div
-                                key={index}
-                                className="bg-gray-50 p-3 rounded"
-                              >
-                                <div className="flex items-center space-x-2 mb-1">
-                                  <span
-                                    className={`px-2 py-1 rounded text-xs font-medium ${colors.getSeverityColor(issue.severity)}`}
-                                  >
-                                    {issue.severity}
-                                  </span>
-                                  <span className="text-xs text-gray-600">
-                                    {issue.type}
-                                  </span>
-                                  {issue.lines && issue.lines.length > 0 && (
-                                    <span className="text-xs text-gray-500">
-                                      Lines: {issue.lines.join(", ")}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-sm text-gray-700">
-                                  {issue.description}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      }
+                    )}
                   </div>
                 </div>
               ) : (
@@ -350,7 +448,16 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
               )}
             </div>
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-end space-x-3">
+              {logDetail !== undefined && (
+                <button
+                  onClick={() => handleQuickExport(logDetail)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  EXport
+                </button>
+              )}
+
               <button
                 onClick={handleCloseDetail}
                 className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"

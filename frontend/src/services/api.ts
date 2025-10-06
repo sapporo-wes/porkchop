@@ -26,7 +26,8 @@ const api = axios.create({
 export const apiClient = {
   async uploadFiles(
     files: File[],
-    promptCategoryNames: string[]
+    promptCategoryNames: string[],
+    batchName: string
   ): Promise<ValidationBatch> {
     const formData = new FormData();
 
@@ -37,6 +38,8 @@ export const apiClient = {
     promptCategoryNames.forEach((name) => {
       formData.append("prompt_category_names", name);
     });
+
+    formData.append("batch_name", batchName);
 
     const response = await api.post("/validate", formData, {
       headers: {

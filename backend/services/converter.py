@@ -1,4 +1,3 @@
-from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
 from models.database import ValidationBatchORM, ValidationFileORM
@@ -14,6 +13,7 @@ from schema import (
 def batch_orm_to_schema(batch_orm: ValidationBatchORM) -> ValidationBatchResponse:
     return ValidationBatchResponse(
         id=batch_orm.id,
+        name=batch_orm.name,
         status=batch_orm.status,
         file_ids=[
             ValidationFileId(id=file.id, file_name=file.file_name)
@@ -48,6 +48,7 @@ def batch_orm_to_active_response(
 ) -> ActiveBatchResponse:
     return ActiveBatchResponse(
         id=batch_orm.id,
+        name=batch_orm.name,
         status=batch_orm.status,
         file_ids=[
             ValidationFileId(id=file.id, file_name=file.file_name)

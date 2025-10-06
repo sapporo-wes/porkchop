@@ -108,6 +108,23 @@ export const usePromptCategories = (options: UsePromptCategoriesOptions = {}) =>
   }, []);
 
   /**
+   * 全カテゴリの"all"プロンプト（has_all: true）を選択
+   */
+  const selectAllCategoryAllPrompts = useCallback(() => {
+    if (!promptCategories) return;
+
+    const allPrompts: string[] = [];
+    promptCategories.forEach(category => {
+      const allPrompt = category.prompts.find(p => p.has_all);
+      if (allPrompt) {
+        allPrompts.push(`${category.category}::${allPrompt.name}`);
+      }
+    });
+
+    setSelectedPrompts(allPrompts);
+  }, [promptCategories]);
+
+  /**
    * プロンプト内容を取得してモーダル表示
    */
   const fetchAndShowPromptContent = useCallback(async (name: string, category: string) => {
@@ -161,6 +178,7 @@ export const usePromptCategories = (options: UsePromptCategoriesOptions = {}) =>
     isPromptSelected,
     getCategorySelectionState,
     clearSelection,
+    selectAllCategoryAllPrompts,
 
     // プロンプト内容操作
     fetchAndShowPromptContent,

@@ -37,6 +37,9 @@ async def validate_files(
         ...,
         description="Prompt category and name in the format 'category::name' (e.g. ['pipeline_validity::all'] )",
     ),
+    batch_name: str = Form(
+        ..., description="Name of the job (ValidationBatch)", max_length=255
+    ),
 ):
     if not upload_files:
         raise HTTPException(
@@ -55,6 +58,9 @@ async def validate_files(
             status_code=fastapi_status.HTTP_400_BAD_REQUEST,
             detail="No prompt category/name provided",
         )
+
+    if not batch_name or batch_name.strip() == "":
+        batch_name = "N/A"
 
     file_models: list[ValidationFileModel] = []
     for file in upload_files:
@@ -100,7 +106,7 @@ async def validate_files(
 
     # try:
     batch, files = validation_service.create_validation_batch_and_files(
-        file_models, prompt_infos, db
+        file_models, prompt_infos, batch_name, db
     )
     # except Exception as e:
     #     raise HTTPException(

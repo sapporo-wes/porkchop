@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState, useCallback } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import apiClient from "../services/api";
 import type { ValidationLogPagenated, ValidationBatch } from "../types";
 
@@ -33,30 +33,38 @@ export const useLogList = (options: UseLogListOptions = {}) => {
   const {
     data: logsData,
     isLoading: logsLoading,
+    isError: isLogsError,
     error: logsError,
     refetch,
   } = useQuery<ValidationLogPagenated, Error>({
-    queryKey: ["logs", currentPage, searchTerm, pageSize],
-    queryFn: () => apiClient.getValidationLogs(currentPage, pageSize, searchTerm),
-    onError: (error: any) => {
-      options.onError?.(error.message || "ログの取得に失敗しました");
-    },
-    keepPreviousData: true, // ページ切り替え時の体験向上
+    queryKey: ["logs", currentPage, searchTerm, pageSize] as const,
+    queryFn: () =>
+      apiClient.getValidationLogs(currentPage, pageSize, searchTerm),
+    // keepPreviousData: true, // ページ切り替え時の体験向上
+    placeholderData: keepPreviousData,
   });
+  useEffect(() => {
+    if (!isLogsError) return;
+    const msg = logsError?.message ?? "ログ一覧の取得に失敗しました";
+    options.onError?.(msg);
+  }, [isLogsError, logsError, options]);
 
   // ログ詳細取得
   const {
     data: logDetail,
     isLoading: detailLoading,
+    isError: isDetailError,
     error: detailError,
   } = useQuery<ValidationBatch, Error>({
-    queryKey: ["log-detail", selectedLogId],
-    queryFn: () => selectedLogId ? apiClient.getValidationLogDetail(selectedLogId) : Promise.reject(),
+    queryKey: ["log-detail", selectedLogId] as const,
+    queryFn: () => apiClient.getValidationLogDetail(selectedLogId!),
     enabled: !!selectedLogId,
-    onError: (error: any) => {
-      options.onError?.(error.message || "ログ詳細の取得に失敗しました");
-    },
   });
+  useEffect(() => {
+    if (!isDetailError) return;
+    const msg = detailError?.message ?? "ログ詳細の取得に失敗しました";
+    options.onError?.(msg);
+  }, [isDetailError, detailError, options]);
 
   /**
    * 検索実行
@@ -76,11 +84,14 @@ export const useLogList = (options: UseLogListOptions = {}) => {
   /**
    * ページ変更
    */
-  const changePage = useCallback((page: number) => {
-    if (logsData && page >= 1 && page <= logsData.total_pages) {
-      setCurrentPage(page);
-    }
-  }, [logsData]);
+  const changePage = useCallback(
+    (page: number) => {
+      if (logsData && page >= 1 && page <= logsData.total_pages) {
+        setCurrentPage(page);
+      }
+    },
+    [logsData]
+  );
 
   /**
    * 前のページへ
@@ -164,6 +175,10 @@ export const useLogList = (options: UseLogListOptions = {}) => {
     // データ
     logsData,
     logDetail,
+
+    // error
+    logsError,
+    detailError,
 
     // 検索・ページネーション状態
     searchTerm,
