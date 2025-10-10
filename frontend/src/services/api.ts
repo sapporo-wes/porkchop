@@ -2,8 +2,8 @@ import axios from "axios";
 import {
   ValidationBatch,
   ValidationBatchSchema,
-  ValidationLogPagenated,
-  ValidationLogPagenatedSchema,
+  ValidationLogPaginated,
+  ValidationLogPaginatedSchema,
   PromptCategory,
   PromptCategorySchema,
   PromptContent,
@@ -57,7 +57,7 @@ export const apiClient = {
     page: number = 1,
     per_page: number = 20,
     search?: string
-  ): Promise<ValidationLogPagenated> {
+  ): Promise<ValidationLogPaginated> {
     const params = new URLSearchParams({
       page: page.toString(),
       per_page: per_page.toString(),
@@ -68,7 +68,7 @@ export const apiClient = {
     }
 
     const response = await api.get(`/logs?${params.toString()}`);
-    return validateApiResponse(response.data, ValidationLogPagenatedSchema);
+    return validateApiResponse(response.data, ValidationLogPaginatedSchema);
   },
 
   // 検証ログ詳細取得（IDが数値に変更）

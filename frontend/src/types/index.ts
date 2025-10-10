@@ -1,4 +1,5 @@
-import { z } from "zod";
+// import { z } from "zod";
+import * as z from "zod";
 
 // ========================================
 // 基本型・Enum
@@ -123,7 +124,7 @@ export type ValidationBatch = z.infer<typeof ValidationBatchSchema>;
 // Log関連
 // ========================================
 
-export const ValidationLogPagenatedSchema = z.object({
+export const ValidationLogPaginatedSchema = z.object({
   logs: z.array(ValidationBatchSchema),
   curr_page: z.number(),
   total_pages: z.number(),
@@ -132,8 +133,8 @@ export const ValidationLogPagenatedSchema = z.object({
   has_next: z.boolean(),
   has_prev: z.boolean(),
 });
-export type ValidationLogPagenated = z.infer<
-  typeof ValidationLogPagenatedSchema
+export type ValidationLogPaginated = z.infer<
+  typeof ValidationLogPaginatedSchema
 >;
 
 export const ActiveBatchSchema = z.object({

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import apiClient from "../services/api";
-import type { ValidationLogPagenated, ValidationBatch } from "../types";
+import type { ValidationLogPaginated, ValidationBatch } from "../types";
 
 type RefreshStatus = "idle" | "loading" | "success";
 
@@ -36,7 +36,7 @@ export const useLogList = (options: UseLogListOptions = {}) => {
     isError: isLogsError,
     error: logsError,
     refetch,
-  } = useQuery<ValidationLogPagenated, Error>({
+  } = useQuery<ValidationLogPaginated, Error>({
     queryKey: ["logs", currentPage, searchTerm, pageSize] as const,
     queryFn: () =>
       apiClient.getValidationLogs(currentPage, pageSize, searchTerm),

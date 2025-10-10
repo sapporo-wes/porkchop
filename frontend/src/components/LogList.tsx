@@ -3,6 +3,7 @@ import { useLogList } from "../hooks/useLogList";
 import { useStatusColors } from "../hooks/useStatusColors";
 import { useSeverityCounts } from "../hooks/useSeverityCounts";
 import { useMarkdownExport } from "../hooks/useMarkdownExport";
+import ReactPaginate from "react-paginate";
 import type { PromptInfo } from "../types";
 
 interface LogListProps {
@@ -20,9 +21,13 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
     logDetail,
     detailLoading,
     refreshStatus,
+    changePage,
+    goToPreviousPage,
+    goToNextPage,
     handleRefresh,
     handleViewDetail,
     handleCloseDetail,
+    paginationInfo,
   } = useLogList({ onError, pageSize });
 
   const colors = useStatusColors();
@@ -99,7 +104,6 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
           </div>
           {/* TODO: 検索機能は将来実装 */}
         </div>
-
         {/* ログ一覧 */}
         {logsLoading ? (
           <div className="flex justify-center items-center py-8">
@@ -188,8 +192,37 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
             )}
           </div>
         )}
-
-        {/* TODO: ページネーションは将来実装 */}
+        <div className="mt-1 flex items-center justify-between">
+          <div className="mt-6 text-sm text-gray-600">
+            ログ: {paginationInfo.total}件
+          </div>
+          <div className="flex-1 flex justify-center">
+            <ReactPaginate
+              pageCount={paginationInfo.totalPages}
+              onPageChange={(page) => {
+                changePage(page.selected + 1);
+              }}
+              breakLabel="..."
+              nextLabel="次へ"
+              previousLabel="前へ"
+              containerClassName="flex items-center justify-center space-x-2 mt-6"
+              pageClassName="inline-block"
+              pageLinkClassName="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+              activeClassName="bg-blue-600 text-white"
+              activeLinkClassName="!bg-blue-600 !text-white !border-blue-600"
+              previousClassName="inline-block"
+              nextClassName="inline-block"
+              previousLinkClassName="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+              nextLinkClassName="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+              disabledClassName="opacity-50 cursor-not-allowed"
+              disabledLinkClassName="!cursor-not-allowed hover:!bg-transparent"
+              breakClassName="inline-block"
+              breakLinkClassName="px-3 py-2 text-sm text-gray-700"
+              marginPagesDisplayed={1}
+              pageRangeDisplayed={3}
+            />
+          </div>
+        </div>
       </div>
 
       {/* 詳細モーダル */}
