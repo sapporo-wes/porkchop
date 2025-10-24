@@ -127,7 +127,6 @@ class ValidationService:
         await self.ollama_service.validate_files_with_prompt(
             files, prompt_info, prompt_content_resp.content, prompt_task
         )
-        print(f"Validate prompt result: \n{prompt_task}\n")
 
         batch: ValidationBatchORM | None = db.get(ValidationBatchORM, batch_id)
         if not batch:
@@ -142,10 +141,6 @@ class ValidationService:
             batch.status = Status.completed
         db.commit()
         db.refresh(batch)
-
-        print("Updated batch after validation: \n")
-        print(f"{batch.prompt_results}")
-        print(f"name: {batch.name}")
 
         return
 

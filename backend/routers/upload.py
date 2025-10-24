@@ -114,10 +114,6 @@ async def validate_files(
     #         detail="Failed to create validation batch",
     #     ) from e
 
-    print(batch)
-    for a in files:
-        print(a)
-
     try:
         change_batch_status(batch, Status.processing, db)
         print("--")

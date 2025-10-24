@@ -42,11 +42,26 @@ class ValidationIssue(BaseModel):
 
     model_config = ConfigDict(use_enum_values=True)
 
+    file: str
+    content: str | None = None
     severity: Severity
     description: str
-    lines: list[int] | None
     # type: IssueType  # Experimental, may be extended or deleted in the future
     type: str  # Experimental, may be extended or deleted in the future
+    # lines: list[int] | None = None
+
+
+# ----Model for root_boalean.json----
+# class ValidationIssue(BaseModel):
+#     """An issue LLM found in files. A list of these is the schema for the model's JSON output."""
+
+#     model_config = ConfigDict(use_enum_values=True)
+
+#     severity: Severity
+#     description: str
+#     lines: list[int] | None
+#     # type: IssueType  # Experimental, may be extended or deleted in the future
+#     type: str  # Experimental, may be extended or deleted in the future
 
 
 #######################################################
@@ -187,7 +202,7 @@ class ValidationBatchResponse(ValidationBatchModel):
 # Validation log
 #########################################################
 # ページネーションレスポンス
-class ValidationLogsPagenatedResponse(BaseModel):
+class ValidationLogsPaginatedResponse(BaseModel):
     logs: list[ValidationBatchResponse]
     curr_page: int
     total_pages: int

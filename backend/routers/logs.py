@@ -9,14 +9,14 @@ from models.database import ValidationBatchORM, ValidationFileORM, db_dependency
 from schema import (
     ActiveBatchResponse,
     ValidationBatchResponse,
-    ValidationLogsPagenatedResponse,
+    ValidationLogsPaginatedResponse,
 )
 from services.converter import batch_orm_to_active_response, batch_orm_to_schema
 
 router = APIRouter()
 
 
-@router.get("/logs", response_model=ValidationLogsPagenatedResponse)
+@router.get("/logs", response_model=ValidationLogsPaginatedResponse)
 async def get_validation_logs(
     db: db_dependency,
     page: int = Query(1, ge=1),
@@ -55,7 +55,7 @@ async def get_validation_logs(
         batch_orms = result.scalars().all()
         logs = [batch_orm_to_schema(batch) for batch in batch_orms]
 
-        return ValidationLogsPagenatedResponse(
+        return ValidationLogsPaginatedResponse(
             logs=logs,
             curr_page=page,
             total_pages=total_pages,
