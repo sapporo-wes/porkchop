@@ -23,6 +23,11 @@ type UseLogListOptions = {
  * - 詳細モーダル管理
  */
 export const useLogList = (options: UseLogListOptions = {}) => {
+  const severityOrder = {
+    high: 0,
+    medium: 1,
+    low: 2,
+  };
   const { pageSize = 20 } = options;
 
   // 検索・ページネーション状態
@@ -34,7 +39,7 @@ export const useLogList = (options: UseLogListOptions = {}) => {
   const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
 
-  // Severityフィルター状態
+  // High Severityフィルター状態
   const [promptFilterMap, setPromptFilterMap] = useState<Map<string, boolean>>(
     new Map()
   );
@@ -210,15 +215,19 @@ export const useLogList = (options: UseLogListOptions = {}) => {
   }, [isGlobalFilterActive]);
 
   /**
-   * フィルター適用後のissue配列を取得
+   * フィルターフラグに応じてissue配列を取得
    */
   const getFilteredIssues = useCallback(
     (promptKey: string, issues: ValidationIssue[]): ValidationIssue[] => {
       const isFilterActive = getPromptFilterState(promptKey);
-      if (!isFilterActive) {
-        return issues;
-      }
-      return issues.filter((issue) => issue.severity === "high");
+
+      const filtered = isFilterActive
+        ? issues.filter((issue) => issue.severity === "high")
+        : issues;
+
+      return [...filtered].sort(
+        (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
+      );
     },
     [getPromptFilterState]
   );
