@@ -26,6 +26,12 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
     handleViewDetail,
     handleCloseDetail,
     paginationInfo,
+    isGlobalFilterActive,
+    getPromptKey,
+    getPromptFilterState,
+    togglePromptFilter,
+    toggleGlobalFilter,
+    getFilteredIssues,
   } = useLogList({ onError, pageSize });
 
   const colors = useStatusColors();
@@ -375,9 +381,37 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
 
                   {/* Issue詳細（全プロンプト結果を統合表示） */}
                   <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">
-                      検出された問題
-                    </h4>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-gray-900">
+                        検出された問題
+                      </h4>
+
+                      {/* 一括フィルターボタン */}
+                      <button
+                        onClick={toggleGlobalFilter}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          isGlobalFilterActive
+                            ? "bg-red-100 text-red-700 hover:bg-red-200 border border-red-300"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+                        }`}
+                        title="全プロンプトのHigh severityのみ表示"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                          />
+                        </svg>
+                        一括: High のみ
+                      </button>
+                    </div>
                     {(logDetail as ValidationBatch).prompt_results.map(
                       (promptResult) => {
                         if (
@@ -394,9 +428,46 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                             className="border border-gray-200 rounded-lg p-4"
                           >
                             <div className="flex items-center justify-between mb-3">
-                              <h5 className="font-medium text-gray-900">
-                                {promptInfoToString(promptResult.prompt)}
-                              </h5>
+                              {/* 左側: プロンプト名 + 個別フィルター */}
+                              <div className="flex items-center gap-3">
+                                <h5 className="font-medium text-gray-900">
+                                  {promptInfoToString(promptResult.prompt)}
+                                </h5>
+
+                                {/* 個別フィルターボタン */}
+                                <button
+                                  onClick={() =>
+                                    togglePromptFilter(
+                                      getPromptKey(promptResult.prompt)
+                                    )
+                                  }
+                                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                    getPromptFilterState(
+                                      getPromptKey(promptResult.prompt)
+                                    )
+                                      ? "bg-red-100 text-red-700 hover:bg-red-200 border border-red-300"
+                                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300"
+                                  }`}
+                                  title="High severity のみ表示"
+                                >
+                                  <svg
+                                    className="w-3 h-3"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                                    />
+                                  </svg>
+                                  High のみ
+                                </button>
+                              </div>
+
+                              {/* 右側: Severity集計 */}
                               <div className="flex items-center space-x-2 text-xs font-medium">
                                 <span
                                   className={colors.getSeverityColor("high")}
@@ -431,43 +502,76 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                               </div>
                             </div>
 
-                            <div className="space-y-2">
-                              {promptResult.result.map((issue, index) => (
-                                <div
-                                  key={index}
-                                  className="bg-gray-50 p-3 rounded"
-                                >
-                                  <div className="flex items-center space-x-2 mb-1">
-                                    <span
-                                      className={`px-2 py-1 rounded text-xs font-medium ${colors.getSeverityColor(issue.severity)}`}
-                                    >
-                                      {issue.severity}
-                                    </span>
-                                    {issue.file && (
-                                      <span className="text-xs text-gray-500">
-                                        File: {issue.file}
-                                      </span>
-                                    )}
-                                    <span className="text-xs text-gray-600">
-                                      {issue.type}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center space-x-1 mb-2">
-                                    <span className="text-xs text-gray-500">
-                                      Content:{" "}
-                                    </span>
-                                    {issue.content && (
-                                      <span className="text-xs text-gray-500 bg-gray-200">
-                                        {issue.content}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-gray-700">
-                                    {issue.description}
-                                  </p>
+                            {(() => {
+                              const promptKey = getPromptKey(
+                                promptResult.prompt
+                              );
+                              const filteredIssues = getFilteredIssues(
+                                promptKey,
+                                promptResult.result || []
+                              );
+                              const isFilterActive =
+                                getPromptFilterState(promptKey);
+
+                              return (
+                                <div className="space-y-2">
+                                  {filteredIssues.length === 0 ? (
+                                    <p className="text-sm text-gray-500 text-center py-4 bg-gray-50 rounded">
+                                      {promptResult.result?.length === 0
+                                        ? "問題は検出されませんでした"
+                                        : `High severity の問題は検出されませんでした（全${promptResult.result.length}件中）`}
+                                    </p>
+                                  ) : (
+                                    <>
+                                      {isFilterActive &&
+                                        promptResult.result && (
+                                          <p className="text-xs text-gray-500 mb-2">
+                                            High severity{" "}
+                                            {filteredIssues.length}
+                                            件を表示中（全
+                                            {promptResult.result.length}件）
+                                          </p>
+                                        )}
+                                      {filteredIssues.map((issue, index) => (
+                                        <div
+                                          key={index}
+                                          className="bg-gray-50 p-3 rounded"
+                                        >
+                                          <div className="flex items-center space-x-2 mb-1">
+                                            <span
+                                              className={`px-2 py-1 rounded text-xs font-medium ${colors.getSeverityColor(issue.severity)}`}
+                                            >
+                                              {issue.severity}
+                                            </span>
+                                            {issue.file && (
+                                              <span className="text-xs text-gray-500">
+                                                File: {issue.file}
+                                              </span>
+                                            )}
+                                            <span className="text-xs text-gray-600">
+                                              {issue.type}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center space-x-1 mb-2">
+                                            <span className="text-xs text-gray-500">
+                                              Content:{" "}
+                                            </span>
+                                            {issue.content && (
+                                              <span className="text-xs text-gray-500 bg-gray-200">
+                                                {issue.content}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-sm text-gray-700">
+                                            {issue.description}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </>
+                                  )}
                                 </div>
-                              ))}
-                            </div>
+                              );
+                            })()}
                           </div>
                         );
                       }

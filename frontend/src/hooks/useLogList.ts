@@ -1,7 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import apiClient from "../services/api";
-import type { ValidationLogPaginated, ValidationBatch } from "../types";
+import type {
+  ValidationLogPaginated,
+  ValidationBatch,
+  PromptInfo,
+  ValidationIssue,
+} from "../types";
 
 type RefreshStatus = "idle" | "loading" | "success";
 
@@ -28,6 +33,13 @@ export const useLogList = (options: UseLogListOptions = {}) => {
   // 詳細モーダル状態
   const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
+
+  // Severityフィルター状態
+  const [promptFilterMap, setPromptFilterMap] = useState<Map<string, boolean>>(
+    new Map()
+  );
+  const [isGlobalFilterActive, setIsGlobalFilterActive] =
+    useState<boolean>(false);
 
   // ログ一覧取得
   const {
@@ -137,6 +149,9 @@ export const useLogList = (options: UseLogListOptions = {}) => {
   const handleCloseDetail = useCallback(() => {
     setSelectedLogId(null);
     setShowDetailModal(false);
+    // フィルター状態をリセット
+    setPromptFilterMap(new Map());
+    setIsGlobalFilterActive(false);
   }, []);
 
   /**
@@ -146,6 +161,60 @@ export const useLogList = (options: UseLogListOptions = {}) => {
     setSearchTerm("");
     setCurrentPage(1);
   }, []);
+
+  /**
+   * プロンプト識別キーを生成
+   */
+  const getPromptKey = useCallback((prompt: PromptInfo): string => {
+    return `${prompt.category}::${prompt.name}`;
+  }, []);
+
+  /**
+   * 個別プロンプトのフィルター状態を取得
+   */
+  const getPromptFilterState = useCallback(
+    (promptKey: string): boolean => {
+      return promptFilterMap.get(promptKey) || isGlobalFilterActive;
+    },
+    [promptFilterMap, isGlobalFilterActive]
+  );
+
+  /**
+   * 個別プロンプトのフィルターを切り替え
+   */
+  const togglePromptFilter = useCallback((promptKey: string) => {
+    setPromptFilterMap((prev) => {
+      const newMap = new Map(prev);
+      const currentState = newMap.get(promptKey) || false;
+      newMap.set(promptKey, !currentState);
+      return newMap;
+    });
+  }, []);
+
+  /**
+   * 一括フィルターを切り替え
+   */
+  const toggleGlobalFilter = useCallback(() => {
+    setIsGlobalFilterActive((prev) => !prev);
+    // 一括フィルターをONにする際は、個別フィルターをリセット
+    if (!isGlobalFilterActive) {
+      setPromptFilterMap(new Map());
+    }
+  }, [isGlobalFilterActive]);
+
+  /**
+   * フィルター適用後のissue配列を取得
+   */
+  const getFilteredIssues = useCallback(
+    (promptKey: string, issues: ValidationIssue[]): ValidationIssue[] => {
+      const isFilterActive = getPromptFilterState(promptKey);
+      if (!isFilterActive) {
+        return issues;
+      }
+      return issues.filter((issue) => issue.severity === "high");
+    },
+    [getPromptFilterState]
+  );
 
   /**
    * ページネーション情報
@@ -189,6 +258,9 @@ export const useLogList = (options: UseLogListOptions = {}) => {
     selectedLogId,
     showDetailModal,
 
+    // Severityフィルター状態
+    isGlobalFilterActive,
+
     // ローディング・エラー状態
     logsLoading,
     detailLoading,
@@ -209,6 +281,13 @@ export const useLogList = (options: UseLogListOptions = {}) => {
     handleViewDetail,
     handleCloseDetail,
     refetch,
+
+    // Severityフィルター操作
+    getPromptKey,
+    getPromptFilterState,
+    togglePromptFilter,
+    toggleGlobalFilter,
+    getFilteredIssues,
 
     // 計算値・状態情報
     paginationInfo,
