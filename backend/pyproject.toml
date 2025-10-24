@@ -17,6 +17,8 @@ dependencies = [
     "ollama==0.5.3",
     "python-dotenv==1.1.1",
     "aiofiles==24.1.0",
+    "json_repair==0.52.0"
+
 ]
 
 [project.optional-dependencies]
