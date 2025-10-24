@@ -1,0 +1,70 @@
+{
+  "type": "object",
+  "required": ["has_issues", "issues"],
+  "properties": {
+    "has_issues": {
+      "type": "boolean",
+      "description": "Indicates whether any issues were found in the files."
+    },
+    "issues": {
+      "type": "array",
+      "description": "List of issues detected across files.",
+      "minItems": 0,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "content", "severity", "description", "type"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "Path or identifier of the file where the issue occurs."
+          },
+          "content": {
+            "type": ["string", "null"],
+            "description": "The actual line of the detected issue from the file. Be careful to escape double quotes with single backslash if they appear within the code.",
+            "minLength": 0,
+            "maxLength": 200
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "description": {
+            "type": "string",
+            "description": "A detailed description of the issue found in the file.",
+            "maxLength": 500
+          },
+          "type": {
+            "type": "string",
+            "description": "The category of the issue.",
+            "enum": [
+              "security",
+              "quality",
+              "best_practice",
+              "malicious_operation",
+              "licensing",
+              "machine_specifications",
+              "file_paths_and_permissions",
+              "hardcoded_credentials",
+              "hardcoded_paths",
+              "dependency",
+              "container"
+            ]
+          }
+        }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "has_issues": { "const": true } } },
+      "then": { "properties": { "issues": { "minItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "has_issues": { "const": false } } },
+      "then": { "properties": { "issues": { "maxItems": 0 } } }
+    }
+  ]
+}
