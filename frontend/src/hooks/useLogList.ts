@@ -41,6 +41,11 @@ export const useLogList = (options: UseLogListOptions = {}) => {
   const [isGlobalFilterActive, setIsGlobalFilterActive] =
     useState<boolean>(false);
 
+  // 折りたたみ状態
+  const [promptCollapseMap, setPromptCollapseMap] = useState<
+    Map<string, boolean>
+  >(new Map());
+
   // ログ一覧取得
   const {
     data: logsData,
@@ -152,6 +157,8 @@ export const useLogList = (options: UseLogListOptions = {}) => {
     // フィルター状態をリセット
     setPromptFilterMap(new Map());
     setIsGlobalFilterActive(false);
+    // 折りたたみ状態をリセット
+    setPromptCollapseMap(new Map());
   }, []);
 
   /**
@@ -215,6 +222,28 @@ export const useLogList = (options: UseLogListOptions = {}) => {
     },
     [getPromptFilterState]
   );
+
+  /**
+   * プロンプトが折りたたまれているかを取得
+   */
+  const isPromptCollapsed = useCallback(
+    (promptKey: string): boolean => {
+      return promptCollapseMap.get(promptKey) || false;
+    },
+    [promptCollapseMap]
+  );
+
+  /**
+   * プロンプトの折りたたみ状態を切り替え
+   */
+  const togglePromptCollapse = useCallback((promptKey: string) => {
+    setPromptCollapseMap((prev) => {
+      const newMap = new Map(prev);
+      const currentState = newMap.get(promptKey) || false;
+      newMap.set(promptKey, !currentState);
+      return newMap;
+    });
+  }, []);
 
   /**
    * ページネーション情報
@@ -288,6 +317,10 @@ export const useLogList = (options: UseLogListOptions = {}) => {
     togglePromptFilter,
     toggleGlobalFilter,
     getFilteredIssues,
+
+    // 折りたたみ操作
+    isPromptCollapsed,
+    togglePromptCollapse,
 
     // 計算値・状態情報
     paginationInfo,

@@ -32,6 +32,8 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
     togglePromptFilter,
     toggleGlobalFilter,
     getFilteredIssues,
+    isPromptCollapsed,
+    togglePromptCollapse,
   } = useLogList({ onError, pageSize });
 
   const colors = useStatusColors();
@@ -428,8 +430,57 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                             className="border border-gray-200 rounded-lg p-4"
                           >
                             <div className="flex items-center justify-between mb-3">
-                              {/* 左側: プロンプト名 + 個別フィルター */}
+                              {/* 左側: 折りたたみボタン + プロンプト名 + 個別フィルター */}
                               <div className="flex items-center gap-3">
+                                {/* 折りたたみボタン */}
+                                <button
+                                  onClick={() =>
+                                    togglePromptCollapse(
+                                      getPromptKey(promptResult.prompt)
+                                    )
+                                  }
+                                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                                  title={
+                                    isPromptCollapsed(
+                                      getPromptKey(promptResult.prompt)
+                                    )
+                                      ? "展開する"
+                                      : "折りたたむ"
+                                  }
+                                >
+                                  {isPromptCollapsed(
+                                    getPromptKey(promptResult.prompt)
+                                  ) ? (
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 5l7 7-7 7"
+                                      />
+                                    </svg>
+                                  ) : (
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 9l-7 7-7-7"
+                                      />
+                                    </svg>
+                                  )}
+                                </button>
+
                                 <h5 className="font-medium text-gray-900">
                                   {promptInfoToString(promptResult.prompt)}
                                 </h5>
@@ -506,6 +557,12 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                               const promptKey = getPromptKey(
                                 promptResult.prompt
                               );
+
+                              // 折りたたまれている場合は何も表示しない
+                              if (isPromptCollapsed(promptKey)) {
+                                return null;
+                              }
+
                               const filteredIssues = getFilteredIssues(
                                 promptKey,
                                 promptResult.result || []
