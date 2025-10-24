@@ -11,6 +11,8 @@ import {
   ActiveBatch,
   ActiveBatchSchema,
   validateApiResponse,
+  ValidationFile,
+  ValidationFileSchema,
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
@@ -100,6 +102,11 @@ export const apiClient = {
   async getActiveBatches(): Promise<ActiveBatch[]> {
     const response = await api.get("/logs/active");
     return validateApiResponse(response.data, ActiveBatchSchema.array());
+  },
+
+  async getFileContent(fileId: number): Promise<ValidationFile> {
+    const response = await api.get(`/files/${fileId}`);
+    return validateApiResponse(response.data, ValidationFileSchema);
   },
 };
 

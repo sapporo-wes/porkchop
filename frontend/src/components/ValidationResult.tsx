@@ -49,9 +49,9 @@ const ValidationResult: React.FC<ValidationResultProps> = ({
           </div>
           <div className="flex items-center space-x-3">
             <span
-              className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getStatusColor(promptResult.status)}`}
+              className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getIssueStatusColor(promptResult.status)}`}
             >
-              {colors.getStatusText(promptResult.status)}
+              {colors.getIssueStatusText(promptResult.status)}
             </span>
             {promptSummary.isCompleted && (
               <div className="flex items-center space-x-2">
@@ -102,9 +102,6 @@ const ValidationResult: React.FC<ValidationResultProps> = ({
                       className="border-l-4 border-gray-200 pl-4 py-2"
                     >
                       <div className="flex items-start space-x-2">
-                        <span className="text-lg">
-                          {colors.getTypeIcon(issue.type)}
-                        </span>
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center space-x-2">
                             <span
@@ -112,9 +109,20 @@ const ValidationResult: React.FC<ValidationResultProps> = ({
                             >
                               {colors.getSeverityText(issue.severity)}
                             </span>
-                            {issue.lines && issue.lines.length > 0 && (
-                              <span className="text-xs text-gray-500">
-                                行 {issue.lines.join(", ")}
+                            <span className="text-lg">
+                              {colors.getTypeIcon(issue.type)}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              File: {issue.file}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-500">
+                              Content:{" "}
+                            </span>
+                            {issue.content && (
+                              <span className="text-xs text-gray-500 bg-gray-100">
+                                {issue.content}
                               </span>
                             )}
                           </div>
@@ -252,9 +260,9 @@ const ValidationResult: React.FC<ValidationResultProps> = ({
                 {currentBatch.total_prompts} プロンプト
               </span>
               <span
-                className={`px-2 py-1 rounded text-xs font-medium ${colors.getStatusColor(currentBatch.status)}`}
+                className={`px-2 py-1 rounded text-xs font-medium ${colors.getBatchStatusColor(currentBatch)}`}
               >
-                {colors.getStatusText(currentBatch.status)}
+                {colors.getBatchStatusText(currentBatch)}
               </span>
             </div>
 

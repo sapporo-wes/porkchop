@@ -22,8 +22,6 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
     detailLoading,
     refreshStatus,
     changePage,
-    goToPreviousPage,
-    goToNextPage,
     handleRefresh,
     handleViewDetail,
     handleCloseDetail,
@@ -36,7 +34,10 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
   const { exportToMarkdown } = useMarkdownExport();
 
   const handleQuickExport = function (log: ValidationBatch) {
-    exportToMarkdown(log, `porkchop_report_${log.id}.md`);
+    exportToMarkdown(
+      log,
+      `porkchop_report${log.id}${log.name === "N/A" ? "" : `_${log.name}`}.md`
+    );
   };
 
   const formatDate = (dateString: string) => {
@@ -125,13 +126,9 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                   <div className="flex items-center justify-start gap-4">
                     <div className="flex items-center space-x-4">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getStatusColor(log.status)}`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getBatchStatusColor(log)}`}
                       >
-                        {log.status === "completed"
-                          ? "完了"
-                          : log.status === "processing"
-                            ? "処理中"
-                            : "失敗"}
+                        {colors.getBatchStatusText(log)}
                       </span>
                       <div>
                         <p className="text-sm text-gray-600">
@@ -288,14 +285,9 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                       <div>
                         <span className="text-gray-600">ステータス:</span>
                         <span
-                          className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${colors.getStatusColor((logDetail as ValidationBatch).status)}`}
+                          className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${colors.getBatchStatusColor(logDetail)}`}
                         >
-                          {(logDetail as ValidationBatch).status === "completed"
-                            ? "完了"
-                            : (logDetail as ValidationBatch).status ===
-                                "processing"
-                              ? "処理中"
-                              : "失敗"}
+                          {colors.getBatchStatusText(logDetail)}
                         </span>
                       </div>
                       <div>
@@ -343,13 +335,11 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                                     {promptInfoToString(promptResult.prompt)}
                                   </span>
                                   <span
-                                    className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getStatusColor(promptResult.status)}`}
+                                    className={`px-2 py-1 rounded-full text-xs font-medium ${colors.getIssueStatusColor(promptResult.status)}`}
                                   >
-                                    {promptResult.status === "completed"
-                                      ? "完了"
-                                      : promptResult.status === "processing"
-                                        ? "処理中"
-                                        : "失敗"}
+                                    {colors.getIssueStatusText(
+                                      promptResult.status
+                                    )}
                                   </span>
                                 </div>
                                 {promptResult.status === "completed" && (
@@ -386,7 +376,7 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                   {/* Issue詳細（全プロンプト結果を統合表示） */}
                   <div className="space-y-4">
                     <h4 className="font-medium text-gray-900">
-                      検出されたIssue
+                      検出された問題
                     </h4>
                     {(logDetail as ValidationBatch).prompt_results.map(
                       (promptResult) => {
@@ -453,12 +443,22 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                                     >
                                       {issue.severity}
                                     </span>
+                                    {issue.file && (
+                                      <span className="text-xs text-gray-500">
+                                        File: {issue.file}
+                                      </span>
+                                    )}
                                     <span className="text-xs text-gray-600">
                                       {issue.type}
                                     </span>
-                                    {issue.lines && issue.lines.length > 0 && (
-                                      <span className="text-xs text-gray-500">
-                                        Lines: {issue.lines.join(", ")}
+                                  </div>
+                                  <div className="flex items-center space-x-1 mb-2">
+                                    <span className="text-xs text-gray-500">
+                                      Content:{" "}
+                                    </span>
+                                    {issue.content && (
+                                      <span className="text-xs text-gray-500 bg-gray-200">
+                                        {issue.content}
                                       </span>
                                     )}
                                   </div>
@@ -487,7 +487,7 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                   onClick={() => handleQuickExport(logDetail)}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  EXport
+                  Export
                 </button>
               )}
 

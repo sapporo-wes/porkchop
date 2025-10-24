@@ -1,5 +1,19 @@
 import { useMemo } from "react";
-import type { Severity, Status, IssueType } from "../types";
+import type { Severity, Status, IssueType, ValidationBatch } from "../types";
+
+function getBatchStatusConsolidatedStatus(batch: ValidationBatch): Status {
+  switch (batch.status) {
+    case "completed":
+      const anyFailed: boolean = batch.prompt_results.some(
+        (issue) => issue.status === "failed"
+      );
+      return anyFailed ? "failed" : "completed";
+    case "failed":
+    case "processing":
+    case "waiting":
+      return batch.status;
+  }
+}
 
 /**
  * ステータス、重要度、ファイルタイプに対応するTailwindCSSクラスを提供するカスタムフック
@@ -10,7 +24,7 @@ export const useStatusColors = () => {
       /**
        * バッチ・ファイルのステータスに対応する色クラス
        */
-      getStatusColor: (status: Status): string => {
+      getIssueStatusColor: (status: Status): string => {
         switch (status) {
           case "completed":
             return "bg-green-100 text-green-800";
@@ -24,11 +38,45 @@ export const useStatusColors = () => {
         }
       },
 
+      getBatchStatusColor: (batch: ValidationBatch): string => {
+        const consolidatedStatus = getBatchStatusConsolidatedStatus(batch);
+        switch (consolidatedStatus) {
+          case "completed":
+            return "bg-green-100 text-green-800";
+          case "failed":
+            return "bg-red-100 text-red-800";
+          case "processing":
+          case "waiting":
+            return "bg-yellow-100 text-yellow-800";
+          default:
+            return "bg-gray-100 text-gray-800";
+        }
+      },
+
       /**
-       * ステータステキストを取得
+       * Issueのステータステキストを取得
        */
-      getStatusText: (status: Status): string => {
+      getIssueStatusText: (status: Status): string => {
         switch (status) {
+          case "completed":
+            return "完了";
+          case "failed":
+            return "失敗";
+          case "processing":
+            return "処理中";
+          case "waiting":
+            return "待機中";
+          default:
+            return "不明";
+        }
+      },
+
+      /**
+       * Batchのステータステキストを取得
+       */
+      getBatchStatusText: (batch: ValidationBatch): string => {
+        const consolidatedStatus = getBatchStatusConsolidatedStatus(batch);
+        switch (consolidatedStatus) {
           case "completed":
             return "完了";
           case "failed":

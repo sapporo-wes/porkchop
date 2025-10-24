@@ -34,12 +34,20 @@ export type PromptCategoryKind = z.infer<typeof PromptCategoryKindSchema>;
 // ========================================
 
 export const ValidationIssueSchema = z.object({
+  file: z.string(),
+  content: z.string().nullable().optional(),
   severity: SeveritySchema,
   description: z.string(),
-  lines: z.array(z.number()).nullable().optional(),
   // type: IssueTypeSchema,
   type: z.string(),
 });
+// export const ValidationIssueSchema = z.object({
+//   severity: SeveritySchema,
+//   description: z.string(),
+//   lines: z.array(z.number()).nullable().optional(),
+//   // type: IssueTypeSchema,
+//   type: z.string(),
+// });
 export type ValidationIssue = z.infer<typeof ValidationIssueSchema>;
 
 // ========================================
