@@ -3,6 +3,8 @@ from pathlib import Path
 
 from schema import PromptCategory, PromptCategoryKind, PromptContentResponse, PromptInfo
 
+from services.utils import calc_sha256
+
 
 class PromptService:
     def __init__(self):
@@ -28,7 +30,7 @@ class PromptService:
             for prompt_file in prompt_files_in_category:
                 name = prompt_file.stem
                 description = self._extract_description(prompt_file)
-                sha256 = self._calc_sha256(prompt_file.read_bytes())
+                sha256 = calc_sha256(prompt_file.read_bytes())
                 prompt_infos.append(
                     PromptInfo(
                         name=name,
@@ -62,7 +64,7 @@ class PromptService:
         try:
             content_bytes = file_path.read_bytes()
             content = content_bytes.decode("utf-8")
-            sha256 = self._calc_sha256(content_bytes)
+            sha256 = calc_sha256(content_bytes)
             return PromptContentResponse(
                 name=prompt_name, category=category, content=content, sha256=sha256
             )
@@ -93,6 +95,3 @@ class PromptService:
             pass
 
         return None
-
-    def _calc_sha256(self, data: bytes) -> str:
-        return hashlib.sha256(data).hexdigest()
