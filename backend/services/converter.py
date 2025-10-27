@@ -39,6 +39,7 @@ def file_orm_to_schema(file_orm: ValidationFileORM) -> ValidationFile:
         file_name=file_orm.file_name,
         content=file_orm.content,
         file_type=file_orm.file_type,
+        sha256=file_orm.sha256,
         created_at=file_orm.created_at,
     )
 

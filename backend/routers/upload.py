@@ -13,6 +13,7 @@ from schema import (
     ValidationFileModel,
 )
 from services.validation_service import ValidationService, change_batch_status
+from services.utils import calc_sha256
 
 router = APIRouter()
 validation_service = ValidationService()
@@ -79,11 +80,16 @@ async def validate_files(
                 status_code=fastapi_status.HTTP_400_BAD_REQUEST,
                 detail=f"File {file.filename} is not valid UTF-8",
             ) from e
+
+        # Calculate SHA256 hash
+        sha256_hash = calc_sha256(content)
+
         file_models.append(
             ValidationFileModel(
                 file_name=file.filename or "N/A",
                 content=content_decoded,
                 file_type=validation_service._get_file_type(file.filename or "N/A"),
+                sha256=sha256_hash,
             )
         )
 

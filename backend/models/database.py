@@ -87,6 +87,7 @@ class ValidationFileORM(Base):
     file_name: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     file_type: Mapped[str] = mapped_column(String, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=True)
     created_at: Mapped[timestamp] = mapped_column(
         server_default=text("CURRENT_TIMESTAMP"), comment="Creation timestamp"
     )

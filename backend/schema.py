@@ -145,6 +145,7 @@ class ValidationFileModel(BaseModel):
     file_name: str
     content: str
     file_type: str
+    sha256: str
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(ZoneInfo("UTC")),
         description="UTC timestamp",
