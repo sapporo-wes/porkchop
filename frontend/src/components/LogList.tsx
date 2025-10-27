@@ -317,7 +317,18 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
                     <h4 className="font-medium text-gray-900 mb-2">
                       ファイル一覧
                     </h4>
-                    TODO
+                    <div className="space-y-1">
+                      {(logDetail as ValidationBatch).file_ids.map((file) => (
+                        <div
+                          key={file.id}
+                          className="bg-white px-2 py-1.5 rounded border border-gray-100"
+                        >
+                          <span className="text-sm text-gray-700">
+                            {file.file_name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   {/* プロンプト別Severity集計 */}
