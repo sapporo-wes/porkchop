@@ -156,10 +156,11 @@ class ValidationFile(ValidationFileModel):
     id: int = Field(...)
 
 
-class ValidationFileContentResponse(ValidationFile):
-    """Response for /api/files/{file_id}. (Maybe)"""
+class ValidationFileContentResponse(BaseModel):
+    """Response for /api/files?file_id=..."""
 
-    pass
+    files: list[ValidationFile]
+    missing_ids: list[int] | None = None
 
 
 #########################################################
