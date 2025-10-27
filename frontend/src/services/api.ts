@@ -13,6 +13,8 @@ import {
   validateApiResponse,
   ValidationFile,
   ValidationFileSchema,
+  ValidationFileContent,
+  ValidationFileContentSchema,
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
@@ -104,9 +106,13 @@ export const apiClient = {
     return validateApiResponse(response.data, ActiveBatchSchema.array());
   },
 
-  async getFileContent(fileId: number): Promise<ValidationFile> {
-    const response = await api.get(`/files/${fileId}`);
-    return validateApiResponse(response.data, ValidationFileSchema);
+  async getFilesContent(fileIds: number[]): Promise<ValidationFileContent> {
+    const params = new URLSearchParams();
+    fileIds.forEach((id) => {
+      params.append("file_id", id.toString());
+    });
+    const response = await api.get(`/files?${params.toString()}`);
+    return validateApiResponse(response.data, ValidationFileContentSchema);
   },
 };
 

@@ -111,9 +111,16 @@ export const ValidationFileSchema = z.object({
   file_name: z.string(),
   content: z.string(),
   file_type: z.string(),
+  sha256: z.string().nullable().optional(),
   created_at: z.string(), // ISO datestring
 });
 export type ValidationFile = z.infer<typeof ValidationFileSchema>;
+
+export const ValidationFileContentSchema = z.object({
+  files: z.array(ValidationFileSchema),
+  missing_ids: z.array(z.number()).nullable().optional(),
+});
+export type ValidationFileContent = z.infer<typeof ValidationFileContentSchema>;
 
 // ========================================
 // Validation Batch関連

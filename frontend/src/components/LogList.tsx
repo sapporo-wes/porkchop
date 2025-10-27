@@ -3,6 +3,7 @@ import { useLogList } from "../hooks/useLogList";
 import { useStatusColors } from "../hooks/useStatusColors";
 import { useSeverityCounts } from "../hooks/useSeverityCounts";
 import { useMarkdownExport } from "../hooks/useMarkdownExport";
+import { useFileContent } from "../hooks/useFileContent";
 import ReactPaginate from "react-paginate";
 import type { PromptInfo } from "../types";
 
@@ -41,11 +42,29 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
 
   const { exportToMarkdown } = useMarkdownExport();
 
-  const handleQuickExport = function (log: ValidationBatch) {
-    exportToMarkdown(
-      log,
-      `porkchop_report${log.id}${log.name === "N/A" ? "" : `_${log.name}`}.md`
-    );
+  // ファイル内容取得（enabled: false で手動fetchのみ）
+  const {
+    data: fileContent,
+    refetch: fetchFileContent,
+    isFetching: fileContentFetching,
+  } = useFileContent(
+    logDetail ? logDetail.file_ids.map((f) => f.id) : undefined
+  );
+
+  const handleQuickExport = async (log: ValidationBatch) => {
+    try {
+      const { data } = await fetchFileContent();
+      console.log("Fetched file content for export:", data);
+      if (data) {
+        exportToMarkdown(
+          log,
+          data,
+          `porkchop_report${log.id}${log.name === "N/A" ? "" : `_${log.name}`}.md`
+        );
+      }
+    } catch (error) {
+      onError("エクスポートに失敗しました");
+    }
   };
 
   const formatDate = (dateString: string) => {
