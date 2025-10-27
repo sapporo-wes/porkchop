@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import apiClient from "../services/api";
-import type {
+import {
   ValidationLogPaginated,
   ValidationBatch,
   PromptInfo,
   ValidationIssue,
+  SeverityOrder,
 } from "../types";
 
 type RefreshStatus = "idle" | "loading" | "success";
@@ -23,11 +24,6 @@ type UseLogListOptions = {
  * - 詳細モーダル管理
  */
 export const useLogList = (options: UseLogListOptions = {}) => {
-  const severityOrder = {
-    high: 0,
-    medium: 1,
-    low: 2,
-  };
   const { pageSize = 20 } = options;
 
   // 検索・ページネーション状態
@@ -226,7 +222,7 @@ export const useLogList = (options: UseLogListOptions = {}) => {
         : issues;
 
       return [...filtered].sort(
-        (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
+        (a, b) => SeverityOrder[a.severity] - SeverityOrder[b.severity]
       );
     },
     [getPromptFilterState]

@@ -15,6 +15,11 @@ export type Status = z.infer<typeof StatusSchema>;
 
 export const SeveritySchema = z.enum(["high", "medium", "low"]);
 export type Severity = z.infer<typeof SeveritySchema>;
+export const SeverityOrder = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
 
 export const IssueTypeSchema = z.enum(["security", "quality", "best_practice"]);
 export type IssueType = z.infer<typeof IssueTypeSchema>;
