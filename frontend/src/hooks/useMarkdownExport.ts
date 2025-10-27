@@ -1,6 +1,17 @@
 import { useState, useCallback } from "react";
-import { ValidationBatch, ValidationPromptResult } from "../types";
-import { nsToSecString, formatPromptName } from "../utils";
+import {
+  Severity,
+  SeverityOrder,
+  ValidationBatch,
+  ValidationFileContent,
+  ValidationPromptResult,
+} from "../types";
+import {
+  nsToSecString,
+  formatPromptName,
+  formatTypeName,
+  capitalizeFirstLetter,
+} from "../utils";
 import { useSeverityCounts } from "./useSeverityCounts";
 import { apiClient } from "../services/api";
 
@@ -10,18 +21,33 @@ export const useMarkdownExport = () => {
   const severityCounts = useSeverityCounts();
 
   const generateMarkdown = useCallback(
-    (log: ValidationBatch, template?: (log: ValidationBatch) => string) => {
+    (
+      log: ValidationBatch,
+      fileContent?: ValidationFileContent,
+      template?: (log: ValidationBatch) => string
+    ) => {
       if (template) {
         return template(log);
       }
 
-      function filelistTemplate(log: ValidationBatch): string {
-        if (log.file_ids.length === 0) {
-          return "N/A";
-        } else {
+      function filelistTemplate(
+        log: ValidationBatch,
+        fileContent?: ValidationFileContent
+      ): string {
+        console.log("Generating file list with fileContent:", fileContent);
+        if (log.file_ids.length > 0) {
+          // fileContentが提供されていればsha256も表示
+          const sha256 = fileContent?.files.find(
+            (file) => file.id === log.file_ids[0].id
+          )?.sha256;
           return log.file_ids
-            .map((file) => `- [${file.file_name}](#${file.file_name})`)
+            .map(
+              (file) => `- ${file.file_name}
+\t- SHA256: \`${sha256 || "N/A"}\``
+            )
             .join("\n");
+        } else {
+          return "N/A";
         }
       }
 
@@ -30,7 +56,7 @@ export const useMarkdownExport = () => {
           .map((prompt_result, index) => {
             const severitySummary =
               severityCounts.calculatePromptSeverityCounts(prompt_result);
-            return `| ${index + 1} | ${prompt_result.status} | ${formatPromptName(prompt_result.prompt)} | ${prompt_result.result ? `${prompt_result.result.length} (H:${severitySummary.high} M:${severitySummary.medium} L:${severitySummary.low})` : 0} | ${nsToSecString(prompt_result.total_duration_ns)} | ${nsToSecString(prompt_result.eval_duration_ns)} | ${nsToSecString(prompt_result.load_duration_ns)} | ${nsToSecString(prompt_result.prompt_eval_duration_ns)} |`;
+            return `| ${index + 1} | ${formatPromptName(prompt_result.prompt)} | ${prompt_result.status} |  ${prompt_result.result ? `${prompt_result.result.length} (H:${severitySummary.high} M:${severitySummary.medium} L:${severitySummary.low})` : 0} | ${nsToSecString(prompt_result.total_duration_ns)} | ${nsToSecString(prompt_result.eval_duration_ns)} | ${nsToSecString(prompt_result.load_duration_ns)} | ${nsToSecString(prompt_result.prompt_eval_duration_ns)} |`;
           })
           .join("\n");
       }
@@ -42,53 +68,84 @@ export const useMarkdownExport = () => {
         const header = `### ${index + 1}. ${formatPromptName(prompt_result.prompt)}`;
         const status = `**Status:** ${prompt_result.status}`;
 
-        const grouped = prompt_result.result?.reduce(
-          (acc, issue) => {
-            if (!acc[issue.file]) {
-              acc[issue.file] = "";
-            }
-            acc[issue.file] += `\t- \`${issue.content ?? "(no content)"}\`
-\t\t- Severity: ${issue.severity}
-\t\t- Type: ${issue.type}
-\t\t- Description: ${issue.description}
-`;
+        console.log("before", prompt_result.result);
+        const result_type_sorted = prompt_result.result
+          ? [...prompt_result.result].sort((a, b) => {
+              const typeCompare = a.type.localeCompare(b.type);
+              if (typeCompare !== 0) {
+                return typeCompare;
+              }
+              return SeverityOrder[a.severity] - SeverityOrder[b.severity];
+            })
+          : [];
+        console.log("after", result_type_sorted);
 
-            return acc;
-          },
-          {} as Record<string, string>
-        );
-        const issuesString = grouped
-          ? Object.entries(grouped)
-              .map(([file, content]) => {
-                return `- ${file}\n${content}\n`;
-              })
-              .join("\n\n")
-          : "No issues found.";
+        let prevType: string | null = null;
+        let prevSeverity: Severity | null = null;
+        let count = 0;
+        const issuesString = result_type_sorted
+          .map((issue) => {
+            if (issue.type !== prevType) {
+              prevType = issue.type;
+              count = 1;
+            } else if (issue.severity !== prevSeverity) {
+              prevSeverity = issue.severity;
+              count = 1;
+            } else {
+              count++;
+            }
+
+            return `#### ${formatTypeName(issue.type)}-${capitalizeFirstLetter(issue.severity)}-${count}
+
+- File: ${issue.file}
+- Description: ${issue.description}
+
+\`\`\`\n${issue.content ?? "(no content)"}\n\`\`\`\n\n`;
+          })
+          .join("");
 
         return header + "\n\n" + status + "\n\n" + issuesString;
       }
 
-      function fileContentsTemplate(log: ValidationBatch): string {
-        // TODO
-        return "TODO";
+      function fileContentsTemplate(
+        fileContent?: ValidationFileContent
+      ): string {
+        if (!fileContent || fileContent.files.length === 0) {
+          return "No file contents available.";
+        }
+
+        return fileContent.files
+          .map((file) => {
+            return `### ${file.file_name}
+
+**File Type:** ${file.file_type}  
+**SHA256:** \`${file.sha256 || "N/A"}\`  
+**Created:** ${file.created_at}
+
+\`\`\`${file.file_type}
+${file.content}
+\`\`\`
+`;
+          })
+          .join("\n\n---\n\n");
       }
 
       return `# Porkchop report ID${log.id}: ${log.name}
- 
+
 **Status:** ${log.status}  
 **Created:** ${log.created_at}  
 **Updated:** ${log.updated_at}  
 
+---
+
 ## Files
 
-${filelistTemplate(log)}
-
----
+${filelistTemplate(log, fileContent)}
 
 ### Validation Overview
 
-| No. | Status | Prompt | #Issues | Total (s) | Eval (s) | Load (s) | Prompt Eval (s) | 
-| --- | ------ | ------- | --------- | --------- | -------- | -------- | --------------- |
+| No. | Prompt | Status | #Issues | Total (s) | Eval (s) | Load (s) | Prompt Eval (s) | 
+| --- | ------ | ------ | --------- | --------- | -------- | -------- | --------------- |
 ${validationResultsOverviewTemplate(log)}
 
 ## Validation Details
@@ -98,12 +155,6 @@ ${log.prompt_results
     return ValidationDetailsTemplate(pr, index);
   })
   .join("\n\n")}
-
-
-## File Contents
-
-${fileContentsTemplate(log)}
-
 `;
     },
     []
@@ -132,10 +183,11 @@ ${fileContentsTemplate(log)}
   const exportToMarkdown = useCallback(
     (
       log: ValidationBatch,
+      fileContent?: ValidationFileContent,
       filename?: string,
       template?: (log: ValidationBatch) => string
     ) => {
-      const markdown = generateMarkdown(log, template);
+      const markdown = generateMarkdown(log, fileContent, template);
       downloadMarkdown(markdown, filename);
     },
     [generateMarkdown, downloadMarkdown]

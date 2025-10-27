@@ -31,3 +31,16 @@ export function formatPromptName(promptInfo: PromptInfo): string {
 
   return `${cat} - ${name}`;
 }
+
+export function formatTypeName(typeName: string): string {
+  // capitalize first letter of each word
+  return typeName
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("_");
+}
+
+export function capitalizeFirstLetter(str: string): string {
+  if (str.length === 0) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
