@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from models.database import init_db
-from routers import logs, prompts, upload
+from routers import logs, prompts, upload, files
 
 load_dotenv()
 
@@ -34,6 +34,7 @@ app.add_middleware(
 app.include_router(upload.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
 app.include_router(prompts.router, prefix="/api")
+app.include_router(files.router, prefix="/api")
 
 
 @app.get("/")
