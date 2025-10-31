@@ -47,7 +47,6 @@ async def get_file_content(db: db_dependency, file_id: list[int] = Query(...)):
     except HTTPException:
         raise
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
