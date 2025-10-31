@@ -34,17 +34,16 @@ export const useMarkdownExport = () => {
         log: ValidationBatch,
         fileContent?: ValidationFileContent
       ): string {
-        console.log("Generating file list with fileContent:", fileContent);
         if (log.file_ids.length > 0) {
-          // fileContentが提供されていればsha256も表示
-          const sha256 = fileContent?.files.find(
-            (file) => file.id === log.file_ids[0].id
-          )?.sha256;
           return log.file_ids
-            .map(
-              (file) => `- ${file.file_name}
-\t- SHA256: \`${sha256 || "N/A"}\``
-            )
+            .map((file) => {
+              // fileContentが提供されていればsha256も表示
+              const sha256 = fileContent?.files.find(
+                (fcFile) => fcFile.id === file.id
+              )?.sha256;
+              return `- ${file.file_name}
+\t- SHA256: \`${sha256 || "N/A"}\``;
+            })
             .join("\n");
         } else {
           return "N/A";
@@ -68,7 +67,6 @@ export const useMarkdownExport = () => {
         const header = `### ${index + 1}. ${formatPromptName(prompt_result.prompt)}`;
         const status = `**Status:** ${prompt_result.status}`;
 
-        console.log("before", prompt_result.result);
         const result_type_sorted = prompt_result.result
           ? [...prompt_result.result].sort((a, b) => {
               const typeCompare = a.type.localeCompare(b.type);
@@ -78,7 +76,6 @@ export const useMarkdownExport = () => {
               return SeverityOrder[a.severity] - SeverityOrder[b.severity];
             })
           : [];
-        console.log("after", result_type_sorted);
 
         let prevType: string | null = null;
         let prevSeverity: Severity | null = null;
