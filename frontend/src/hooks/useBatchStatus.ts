@@ -26,7 +26,6 @@ export function useBatchStatus(
     queryKey: ["validation-batch", batchId],
     enabled: batchId !== null,
     queryFn: async () => {
-      console.log("Fetching batch status for ID:", batchId);
       if (batchId == null) return null;
       const b = await apiClient.getValidationLogDetail(batchId);
 

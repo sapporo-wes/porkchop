@@ -54,7 +54,6 @@ const LogList: React.FC<LogListProps> = ({ onError }) => {
   const handleQuickExport = async (log: ValidationBatch) => {
     try {
       const { data } = await fetchFileContent();
-      console.log("Fetched file content for export:", data);
       if (data) {
         exportToMarkdown(
           log,

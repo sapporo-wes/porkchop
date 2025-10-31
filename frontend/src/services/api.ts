@@ -51,8 +51,6 @@ export const apiClient = {
       },
     });
 
-    console.log("Upload response:", response.data);
-
     return validateApiResponse(response.data, ValidationBatchSchema);
   },
 
@@ -83,7 +81,6 @@ export const apiClient = {
 
   async getPromptCategories(): Promise<PromptCategory[]> {
     const response = await api.get("/prompts");
-    console.log("Prompt categories response:", response.data);
     return validateApiResponse(response.data, PromptCategorySchema.array());
   },
 
