@@ -9,3 +9,10 @@ You are given a genomic data analysis pipeline. Your task is to check whether th
 4. Explanation: Provide a clear reasoning for your assessment, with specific references to the steps of the pipeline.
 
 If the pipeline is valid, state clearly that all steps are relevant and safe. If invalid, list the problematic steps and explain why they are risky or unnecessary.
+
+When you flag any issues, include the actual line where each issue occurs.
+
+Also, assign a severity level to each issue using the following scale:
+- high: irreversible or critical problem
+- medium: a commonly problematic program defect
+- low: an issue that arises only under specific circumstances
