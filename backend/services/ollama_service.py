@@ -1,4 +1,5 @@
 import asyncio
+import json_repair
 import json
 import os
 from dataclasses import dataclass
@@ -6,6 +7,7 @@ from pathlib import Path
 
 from ollama import AsyncClient, GenerateResponse, Options
 from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import ValidationError
 
 from schema import (
     PromptInfo,
@@ -121,14 +123,16 @@ class OllamaService:
         prompt_task: ValidationPromptResult,
     ) -> None:
         """Validate multiple with a single prompt."""
-        print(f"Model: {self.model}\n")
-        self._schema: JsonSchemaValue = self._load_format_schema(
-            Path("format/root_boolean.json")
-        )
+        print("-------------------model, schema-------------------")
+        print(f"Model: {self.model}")
         self._options: Options = self._construct_options(OllamaOptions())
+        self._schema: JsonSchemaValue = self._load_format_schema(
+            Path("format/generate.schema.json")
+        )
         print(f"Schema: \n{self._schema}\n")
         prompt = self._construct_prompt(files, prompt_content)
         print(f"----\nConstructed prompt: \n{prompt}\n")
+        print("---------------------------------------------------")
 
         try:
             # TODO: do we need "thinking" options when the model supports it
@@ -147,7 +151,9 @@ class OllamaService:
             prompt_task.error_message = str(e)
             return
 
-        print(f"Ollama response: {generate_response}")
+        print(
+            f"------------------------Ollama response:\n{generate_response}\n------------------------"
+        )
 
         try:
             response_text = generate_response["response"]
@@ -162,10 +168,24 @@ class OllamaService:
                 self._extract_issues_from_response_text(response_text)
             )
             print(f"Extracted issues: {response}")
+        except ValidationError as e:
+            # TODO NEED LOGGING
+            prompt_task.status = Status.failed
+            prompt_task.error_message = (
+                f"Response from Ollama has invalid schema: {str(e)}"
+            )
+            return
         except json.decoder.JSONDecodeError as e:
             # TODO NEED LOGGING
             prompt_task.status = Status.failed
             prompt_task.error_message = f"Failed to parse response: {str(e)}"
+            return
+        except ValueError as e:
+            # TODO NEED LOGGING
+            prompt_task.status = Status.failed
+            prompt_task.error_message = (
+                f"Received invalid response from Ollama: {str(e)}"
+            )
             return
 
         prompt_task.status = Status.completed
@@ -184,7 +204,9 @@ class OllamaService:
         if not text.strip():
             raise ValueError("Response is empty")
 
-        tmp_result = json.loads(text)
+        # tmp_result = json.loads(text)
+        tmp_result = json_repair.loads(text)
+        print(f"---\nRepaired JSON:\n{json.dumps(tmp_result)}\n---")
         has_issues = tmp_result.get("has_issues")
         if isinstance(has_issues, bool) and has_issues:
             issues = tmp_result.get("issues")
@@ -201,10 +223,24 @@ class OllamaService:
         self, files: list[ValidationFile], prompt_content: str
     ) -> str:
         prompt = f"{prompt_content}\n\n"
-        for file in files:
-            prompt += (
-                f"\n\n---\nFile Name: {file.file_name}\nFile Content:\n{file.content}"
+        for index, file in enumerate(files):
+            prompt += f'---\n\n#{index + 1} File "{file.file_name}"\nFile Content:\n\n```\n{file.content}\n```\n\n'
+        return prompt
+
+    def _construct_prompt_lines_added(
+        self, files: list[ValidationFile], prompt_content: str
+    ) -> str:
+        prompt = f"{prompt_content}\n\n"
+        for index, file in enumerate(files):
+            prompt += f'---\n\n#{index + 1} File "{file.file_name}"\n\n```\n'
+            content_lines = file.content.splitlines()
+            content_lines_count = len(content_lines)
+            padding_width = len(str(content_lines_count))
+            content_with_line_numbers = "\n".join(
+                f"{i:{padding_width}d}: {line}"
+                for i, line in enumerate(content_lines, start=1)
             )
+            prompt += f"{content_with_line_numbers}\n```\n\n"
         return prompt
 
     def _load_format_schema(self, path: Path) -> JsonSchemaValue:
